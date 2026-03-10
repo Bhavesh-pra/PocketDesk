@@ -15,7 +15,7 @@ const result = await Tesseract.recognize(
 imagePath,
 "eng",
 {
-logger: m => console.log(m.status)
+logger: m => {}
 }
 );
 

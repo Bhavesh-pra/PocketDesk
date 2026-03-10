@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+
 require("dotenv").config();
 
 const connectDB =
@@ -13,12 +14,27 @@ require("./routes/authRoutes");
 
 const app = express();
 
+app.use(cors({
+  origin: "http://localhost:5173",
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
+}));
 
 // Middleware
-
-app.use(cors());
 app.use(express.json());
 
+
+
+const albumRoutes = require("./routes/albumRoutes");
+
+app.use("/api/albums",albumRoutes);
+
+const imageRoutes = require("./routes/imageRoutes");
+
+app.use("/api/images",imageRoutes);
+
+app.use("/uploads",express.static("uploads"));
 
 // Connect Database
 

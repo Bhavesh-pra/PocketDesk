@@ -1,0 +1,155 @@
+import { useEffect,useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import API from "../services/api";
+
+interface Image {
+_id:string;
+fileName:string;
+filePath:string;
+}
+
+export default function AlbumPage(){
+
+const { albumId } = useParams();
+
+const [images,setImages] = useState<Image[]>([]);
+const [file,setFile] = useState<File | null>(null);
+
+const navigate = useNavigate();
+
+const loadImages = async ()=>{
+
+try{
+
+const res = await API.get(`/images/list/${albumId}`);
+
+setImages(res.data);
+
+}catch(err){
+console.log("Failed loading images");
+}
+
+};
+
+useEffect(()=>{
+loadImages();
+},[]);
+
+
+const uploadImage = async ()=>{
+
+if(!file) return;
+
+const formData = new FormData();
+
+formData.append("image",file);
+
+try{
+
+await API.post(`/images/upload/${albumId}`,formData);
+
+setFile(null);
+
+loadImages();
+
+}catch(err){
+console.log("Upload failed");
+}
+
+};
+
+
+const deleteImage = async (id:string,name:string)=>{
+
+const confirmDelete =
+window.confirm(`Delete image "${name}" ?`);
+
+if(!confirmDelete) return;
+
+try{
+
+await API.delete(`/images/${id}`);
+
+loadImages();
+
+}catch(err){
+console.log("Delete failed");
+}
+
+};
+
+
+return(
+
+<div className="space-y-8">
+
+    <button
+      onClick={() => navigate("/images")}
+      className="text-sm text-blue-400 hover:underline"
+    >
+    ← Back to Albums
+    </button>
+
+<h1 className="text-xl text-white">
+Album Images
+</h1>
+
+
+<div className="border border-neutral-700 p-6 bg-neutral-900">
+
+<input
+type="file"
+accept="image/*"
+onChange={(e)=>setFile(e.target.files?.[0] || null)}
+/>
+
+<button
+onClick={uploadImage}
+className="ml-4 bg-blue-600 px-4 py-2 text-sm"
+>
+Upload
+</button>
+
+</div>
+
+
+<div className="grid grid-cols-3 gap-6">
+
+{images.map(img=>{
+
+return(
+
+<div
+key={img._id}
+className="border border-neutral-700 p-2"
+>
+
+<img
+src={`http://localhost:5000/${img.filePath}`}
+className="w-full"
+/>
+
+<div className="text-xs mt-2 text-neutral-400 truncate">
+{img.fileName}
+</div>
+
+<button
+onClick={()=>deleteImage(img._id,img.fileName)}
+className="text-xs text-red-400"
+>
+Delete
+</button>
+
+</div>
+
+);
+
+})}
+
+</div>
+
+</div>
+
+);
+
+}

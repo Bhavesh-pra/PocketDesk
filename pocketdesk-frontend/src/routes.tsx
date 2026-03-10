@@ -13,6 +13,7 @@ import AppLayout from "./layout/AppLayout";
 import Home from "./pages/Home";
 import Chat from "./pages/Chat";
 import PdfPage from "./pages/PdfPage";
+import AlbumPage from "./pages/AlbumPage";
 
 export default function AppRoutes() {
   return (
@@ -35,6 +36,9 @@ export default function AppRoutes() {
             <Route path="/images" element={<ImagesPage />} />
             <Route path="/videos" element={<VideosPage />} />
             <Route path="/todo" element={<TodoPage />} />
+            <Route path="/images" element={<ImagesPage />} />
+
+            <Route path="/images/:albumId" element={<AlbumPage />} />
 
           </Route>
 

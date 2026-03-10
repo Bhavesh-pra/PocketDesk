@@ -1,4 +1,5 @@
 const Pdf = require("../models/pdf");
+const Image = require("../models/image");
 
 let chunkCache = {};
 
@@ -7,6 +8,7 @@ let chunkCache = {};
 const loadChunks = async () => {
 
 const pdfs = await Pdf.find();
+const images = await Image.find();
 
 chunkCache = {};
 
@@ -24,8 +26,23 @@ chunkCache[userId] = chunkCache[userId].concat(pdf.chunks);
 
 });
 
+images.forEach(img => {
+
+const userId = img.userId.toString();
+
+if(!chunkCache[userId]){
+chunkCache[userId] = [];
+}
+
+if(img.chunks){
+chunkCache[userId] =
+chunkCache[userId].concat(img.chunks);
+}
+
+});
+
 console.log(
-"Users Loaded:",
+"Chunk cache loaded for users:",
 Object.keys(chunkCache).length
 );
 
@@ -54,10 +71,24 @@ chunkCache[userId] = chunkCache[userId].concat(chunks);
 };
 
 
+// NEW FUNCTION — add image chunks instantly after upload
+const addImageChunks = (userId, chunks) => {
+
+userId = userId.toString();
+
+if(!chunkCache[userId]){
+chunkCache[userId] = [];
+}
+
+chunkCache[userId] = chunkCache[userId].concat(chunks);
+
+};
+
+
 module.exports = {
 
 loadChunks,
 getUserChunks,
-addPdfChunks
-
+addPdfChunks,
+addImageChunks,
 };
