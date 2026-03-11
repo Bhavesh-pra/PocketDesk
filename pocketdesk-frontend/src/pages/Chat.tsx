@@ -13,6 +13,7 @@ import type { ChatResponse } from "../types/api";
 interface Message {
 role: "User" | "AI";
 content: string;
+image?: string;
 sources?: { text: string }[];
 }
 
@@ -24,7 +25,8 @@ export default function Chat() {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [lastQuestion, setLastQuestion] = useState("");
   const { sessionId } = useParams();
-  
+  const [image, setImage] = useState<File | null>(null);
+  const controllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
 
@@ -87,39 +89,128 @@ const handleRegenerate = async () => {
   }
 
 };
+
+const handleStop = () => {
+
+if (controllerRef.current) {
+
+controllerRef.current.abort();
+controllerRef.current = null;
+
+}
+
+setLoading(false);
+
+};
+
   const handleAsk = async () => {
-    if (!question.trim()) return;
 
-    try {
-      setLoading(true);
-      setLastQuestion(question);
-      const userMessage: Message = {
-        role: "User",
-        content: question,
-      };
+  if (!question.trim()) return;
 
-      setMessages((prev) => [...prev, userMessage]);
+  try {
 
-      const res = await API.post<ChatResponse>("/chat/ask", {
-        question,
-        sessionId: sessionId,
+    setLoading(true);
+    setLastQuestion(question);
+
+    const userMessage: Message = {
+      role: "User",
+      content: question,
+      image: image ? URL.createObjectURL(image) : undefined
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setImage(null);
+    let res: ChatResponse;
+
+    // IMAGE CHAT
+    if (image) {
+
+      const formData = new FormData();
+
+      formData.append("image", image);
+      formData.append("question", question);
+      formData.append("sessionId", sessionId || "");
+
+      res = await API.post("/chat/image", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        }
       });
 
-      const aiMessage: Message = {
-        role: "AI",
-        content: res.data.answer,
-        sources: res.data.sources,
-      };
-
-      setMessages((prev) => [...prev, aiMessage]);
-      setQuestion("");
-
-    } catch (error) {
-      console.log("Chat error");
-    } finally {
-      setLoading(false);
+      setImage(null);
     }
-  };
+
+    // NORMAL CHAT
+    else {
+
+      controllerRef.current = new AbortController();
+
+const response = await fetch("http://localhost:5000/api/chat/ask", {
+method: "POST",
+headers: {
+"Content-Type": "application/json",
+Authorization: `Bearer ${localStorage.getItem("token")}`
+},
+body: JSON.stringify({
+question,
+sessionId
+}),
+signal: controllerRef.current.signal
+});
+
+const reader = response.body?.getReader();
+const decoder = new TextDecoder();
+
+let aiText = "";
+
+setMessages(prev => [...prev, { role: "AI", content: "" }]);
+
+while (true) {
+
+const { done, value } = await reader!.read();
+
+if (done) break;
+
+const chunk = decoder.decode(value, { stream: true });
+
+aiText += chunk;
+
+setMessages(prev => {
+
+const updated = [...prev];
+
+updated[updated.length - 1] = {
+role: "AI",
+content: aiText
+};
+
+return updated;
+
+});
+
+}
+
+    }
+
+    setLoading(false);
+    setQuestion("");
+
+  } catch (error:any) {
+
+if (error.name === "AbortError") {
+console.log("Generation stopped");
+return;
+}
+
+console.log("Chat error");
+
+}finally {
+
+    setLoading(false);
+
+  }
+
+};
 
   useEffect(() => {
   bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -146,9 +237,18 @@ return (
             }`}
           >
             <div className="prose prose-invert prose-sm max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {msg.content}
-              </ReactMarkdown>
+
+            {msg.image && (
+              <img
+                src={msg.image}
+                className="max-w-xs rounded mb-3 border border-neutral-700"
+              />
+            )}
+
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {msg.content}
+            </ReactMarkdown>
+
             </div>
 
             {/* Regenerate button */}
@@ -175,21 +275,70 @@ return (
     </div>
 
     {/* Input */}
+
+    {image && (
+
+      <div className="mb-3 relative w-fit">
+
+      <img
+        src={URL.createObjectURL(image)}
+        className="w-32 h-24 object-cover rounded border border-neutral-700"
+      />
+
+      <button
+      onClick={() => setImage(null)}
+      className="absolute top-1 right-1 text-xs bg-black px-2 py-1 rounded"
+      >
+      ✕
+      </button>
+
+      </div>
+
+    )}      
     <div className="mt-6 flex gap-3 border-t border-neutral-700 pt-4">
 
       <input
         value={question}
-        onChange={(e) => setQuestion(e.target.value)}
+        onChange={(e)=>setQuestion(e.target.value)}
         placeholder="Ask something..."
+        disabled={loading}
+        onKeyDown={(e)=>{
+if(e.key === "Enter"){
+handleAsk();
+}
+}}
         className="flex-1 bg-neutral-900 border border-neutral-700 px-4 py-3 text-sm focus:outline-none focus:border-blue-500"
       />
 
-      <button
-        onClick={handleAsk}
-        className="bg-blue-600 text-white px-6 text-sm"
-      >
-        Ask
-      </button>
+      <label className="cursor-pointer px-3 flex items-center">
+📎
+<input
+type="file"
+accept="image/*"
+onChange={(e)=>setImage(e.target.files?.[0] || null)}
+hidden
+/>
+</label>
+
+      {loading ? (
+
+<button
+onClick={handleStop}
+className="bg-red-600 text-white px-6 text-sm"
+>
+Stop
+</button>
+
+) : (
+
+<button
+onClick={handleAsk}
+className="bg-blue-600 text-white px-6 text-sm"
+>
+Ask
+</button>
+
+)}
 
     </div>
 

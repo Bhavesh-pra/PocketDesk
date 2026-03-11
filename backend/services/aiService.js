@@ -5,7 +5,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-const askAI = async (context, question) => {
+const askAI = async (context, question, stream = false) => {
 
   const provider = process.env.AI_PROVIDER;
 
@@ -77,16 +77,21 @@ ANSWER
   if (provider === "openai") {
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: "You are an AI study assistant." },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.6,
-      max_tokens: 600,
-    });
+  model: "gpt-4o-mini",
+  messages: [
+    { role: "system", content: "You are an AI study assistant." },
+    { role: "user", content: prompt }
+  ],
+  temperature: 0.6,
+  max_tokens: 600,
+  stream: stream
+});
 
-    return completion.choices[0].message.content;
+    if (stream) {
+  return completion;   // return stream iterator
+}
+
+return completion.choices[0].message.content;
   }
 
   // ===== OLLAMA MODE =====

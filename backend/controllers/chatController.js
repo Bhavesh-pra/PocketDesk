@@ -1,74 +1,70 @@
-const { askAI } =
-require("../services/aiService");
-
-const { semanticSearch } =
-require("../services/searchService");
-
-const Conversation =
-require("../models/conversation");
+const { askAI } = require("../services/aiService");
+const { semanticSearch } = require("../services/searchService");
+const Conversation = require("../models/conversation");
 
 
-const askQuestion =
-async (req,res)=>{
+// =============================
+// ASK QUESTION
+// =============================
+const askQuestion = async (req, res) => {
 
-try{
+try {
 
-const question =
-req.body?.question;
+const question = req.body?.question;
+const sessionId = req.body?.sessionId;
 
-const sessionId =
-req.body?.sessionId;
-
-if(!question){
-
+if (!question) {
 return res.status(400).json({
-message:"Question required"
+message: "Question required"
 });
-
 }
 
 
-// 1 Semantic Search
+// =============================
+// 1. Semantic Search
+// =============================
 
-const topChunks =
-await semanticSearch(
+const topChunks = await semanticSearch(
 question,
 req.userId,
 3
 );
 
 
-// 2 Context Creation
+// =============================
+// 2. Context Creation
+// =============================
 
 let context = "";
 
 if (topChunks.length > 0) {
-  context = topChunks
-    .map((c, i) => `Document Section ${i + 1}:\n${c.text}`)
-    .join("\n\n")
-    .substring(0, 2000);
+
+context = topChunks
+.map((c, i) => `Document Section ${i + 1}:\n${c.text}`)
+.join("\n\n")
+.substring(0, 2000);
+
 }
 
 
-// 3 Load Memory
+// =============================
+// 3. Load Conversation Memory
+// =============================
 
 let historyText = "";
 
-if(sessionId){
+if (sessionId) {
 
 let conversation = await Conversation.findOne({
-  sessionId: sessionId,
-  userId: req.userId
+sessionId,
+userId: req.userId
 });
 
-if(conversation){
+if (conversation) {
 
-historyText =
-conversation.messages
+historyText = conversation.messages
 .slice(-6)
-.map(m=>
-`${m.role}: ${m.content}`
-)
+.map(m => `${m.role}: ${m.content}`)
 .join("\n");
 
 }
@@ -76,7 +72,9 @@ conversation.messages
 }
 
 
-// 4 Merge Context
+// =============================
+// 4. Merge Context
+// =============================
 
 const finalContext = `
 Use the following information to answer the user's question.
@@ -89,135 +87,191 @@ ${context}
 `;
 
 
-// 5 AI Call
+// =============================
+// 5. OpenAI Streaming
+// =============================
 
-const answer =
-await askAI(
-finalContext,
-question
-);
+const stream = await askAI(finalContext, question, true);
+
+res.setHeader("Content-Type", "text/plain");
+res.setHeader("Transfer-Encoding", "chunked");
+res.flushHeaders();
+
+let fullAnswer = "";
+
+for await (const chunk of stream) {
+
+const token = chunk.choices?.[0]?.delta?.content || "";
+
+if (token) {
+
+fullAnswer += token;
+res.write(token);
+
+}
+
+}
+
+res.end();
 
 
-// 6 Save Memory
+// =============================
+// 6. Save Conversation
+// =============================
 
-if(sessionId){
+if (sessionId) {
 
-let conversation =
-await Conversation.findOne({
+let conversation = await Conversation.findOne({
 sessionId,
 userId: req.userId
 });
 
-if(!conversation){
+if (!conversation) {
 
-conversation =
-new Conversation({
-
+conversation = new Conversation({
 userId: req.userId,
 sessionId,
-messages:[]
-
+messages: []
 });
 
 }
 
 conversation.messages.push({
-
-role:"User",
-content:question
-
+role: "User",
+content: question
 });
 
 conversation.messages.push({
-
-role:"AI",
-content:answer
-
+role: "AI",
+content: fullAnswer
 });
+
 conversation.updatedAt = new Date();
 
 await conversation.save();
 
 }
 
-
-res.json({
-answer,
-sources: topChunks.map(c => ({
-text: c.text.substring(0,200)
-}))
-});
-
-
-}catch(err){
+} catch (err) {
 
 console.log(err);
 
 res.status(500).json({
-message:"AI Error"
+message: "AI Error"
 });
 
 }
 
 };
 
-const getConversationHistory = async (req,res) => {
 
-try{
 
-const conversation =
-await Conversation.findOne({
-sessionId: req.params.sessionId
+// =============================
+// GET CONVERSATION HISTORY
+// =============================
+
+const getConversationHistory = async (req, res) => {
+
+try {
+
+const conversation = await Conversation.findOne({
+sessionId: req.params.sessionId,
+userId: req.userId
 });
 
-if(!conversation){
+if (!conversation) {
 return res.json([]);
 }
 
 res.json(conversation.messages);
 
-}catch(err){
+} catch (err) {
 
 console.log(err);
 
 res.status(500).json({
-message:"History fetch error"
+message: "History fetch error"
 });
 
 }
 
 };
 
-const getChatList = async (req,res) => {
 
-try{
 
-const conversations =
-await Conversation.find({ userId: req.userId })
-.sort({ updatedAt: -1 });
+// =============================
+// DELETE CHAT
+// =============================
+
+const deleteChat = async (req, res) => {
+
+try {
+
+await Conversation.deleteOne({
+sessionId: req.params.sessionId,
+userId: req.userId
+});
+
+res.json({
+message: "Chat deleted"
+});
+
+} catch (err) {
+
+res.status(500).json({
+message: "Delete failed"
+});
+
+}
+
+};
+
+
+
+// =============================
+// GET CHAT LIST
+// =============================
+
+const getChatList = async (req, res) => {
+
+try {
+
+const conversations = await Conversation.find({
+userId: req.userId
+}).sort({ updatedAt: -1 });
+
 
 const formatted = conversations.map(c => ({
+
 sessionId: c.sessionId,
+
 title:
 c.messages?.find(m => m.role === "User")?.content?.substring(0, 40)
 || "New Chat"
+
 }));
 
 res.json(formatted);
 
-}catch(err){
+} catch (err) {
 
 res.status(500).json({
-message:"Chat list error"
+message: "Chat list error"
 });
 
 }
 
 };
 
+
+
+// =============================
+// EXPORTS
+// =============================
 
 module.exports = {
 askQuestion,
 getConversationHistory,
 getChatList,
+deleteChat
 };

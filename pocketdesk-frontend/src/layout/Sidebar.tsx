@@ -14,6 +14,22 @@ export default function Sidebar() {
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
 
+  const deleteChat = async (sessionId:string)=>{
+
+try{
+
+await API.delete(`/chat/${sessionId}`);
+
+setConversations(prev =>
+prev.filter(chat => chat.sessionId !== sessionId)
+);
+
+}catch(err){
+console.log("Delete failed");
+}
+
+};        
+
   const navItem = (path: string, label: string) => {
     const active = location.pathname === path;
 
@@ -84,15 +100,38 @@ useEffect(() => {
 
         {conversations.map((chat) => (
 
-          <button
-            key={chat.sessionId}
-            onClick={() => navigate(`/chat/${chat.sessionId}`)}
-            className="w-full text-left px-4 py-2 text-sm hover:bg-neutral-800 truncate"
-          >
-            {chat.title || "New Chat"}
-          </button>
+        <div
+        key={chat.sessionId}
+className="flex items-center justify-between px-4 py-2 text-sm hover:bg-neutral-800"
+        >
 
-        ))}
+        <button
+        onClick={() => navigate(`/chat/${chat.sessionId}`)}
+        className="truncate text-left flex-1"
+        >
+        {chat.title || "New Chat"}
+        </button>       
+
+        <button       
+        onClick={(e) => {
+        e.stopPropagation();
+
+        const confirmDelete =
+        window.confirm("Are you sure you want to delete this chat?");
+
+        if(confirmDelete){
+        deleteChat(chat.sessionId);
+        }
+
+        }}
+        className="text-red-400 text-xs ml-2"
+        >
+        🗑
+        </button>
+
+        </div>
+
+      ))}
 
       </div>
 
