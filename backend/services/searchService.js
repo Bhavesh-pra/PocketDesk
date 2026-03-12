@@ -53,10 +53,12 @@ questionEmbedding,
 chunk.embedding
 );
 
-results.push({
+rresults.push({
 
 text: chunk.text,
-score: similarity
+score: similarity,
+sourceType: chunk.sourceType,
+sourceName: chunk.sourceName
 
 });
 

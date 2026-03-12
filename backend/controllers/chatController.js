@@ -40,9 +40,16 @@ let context = "";
 if (topChunks.length > 0) {
 
 context = topChunks
-.map((c, i) => `Document Section ${i + 1}:\n${c.text}`)
+.map((c,i)=>`
+Source ${i+1}
+Type: ${c.sourceType || "document"}
+Name: ${c.sourceName || "unknown"}
+
+Content:
+${c.text}
+`)
 .join("\n\n")
-.substring(0, 2000);
+.substring(0,2000);
 
 }
 

@@ -27,6 +27,9 @@ export default function Chat() {
   const { sessionId } = useParams();
   const [image, setImage] = useState<File | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
+  const [uploadedPdf, setUploadedPdf] = useState<string | null>(null);
+  const [showAttachMenu,setShowAttachMenu] = useState(false);
+  const [noteFile, setNoteFile] = useState<File | null>(null);
 
   useEffect(() => {
 
@@ -103,7 +106,47 @@ setLoading(false);
 
 };
 
-  const handleAsk = async () => {
+const handleNoteUpload = async (file: File) => {
+
+try {
+
+const formData = new FormData();
+
+formData.append("note", file);
+formData.append("sessionId", sessionId || "");
+
+await API.post("/notes/upload", formData, {
+headers: {
+"Content-Type": "multipart/form-data"
+}
+});
+
+} catch (err) {
+
+console.log("Note upload failed");
+
+}
+
+};
+
+const handlePdfUpload = async (file:File)=>{
+
+if(!file) return;
+
+const formData = new FormData();
+formData.append("pdf",file);
+
+await API.post("/chat/pdf",formData,{
+headers:{
+"Content-Type":"multipart/form-data"
+}
+});
+
+setUploadedPdf(file.name);
+
+};
+
+const handleAsk = async () => {
 
   if (!question.trim()) return;
 
@@ -118,98 +161,114 @@ setLoading(false);
       image: image ? URL.createObjectURL(image) : undefined
     };
 
-    setMessages((prev) => [...prev, userMessage]);
-    setImage(null);
-    let res: ChatResponse;
+    setMessages(prev => [...prev, userMessage]);
 
     // IMAGE CHAT
     if (image) {
 
       const formData = new FormData();
-
       formData.append("image", image);
       formData.append("question", question);
       formData.append("sessionId", sessionId || "");
 
-      res = await API.post("/chat/image", formData, {
+      const res = await API.post("/chat/image", formData, {
         headers: {
           "Content-Type": "multipart/form-data"
         }
       });
 
+      setMessages(prev => [
+        ...prev,
+        { role: "AI", content: res.data.answer }
+      ]);
+
       setImage(null);
+      setQuestion("");
+      return;
     }
 
-    // NORMAL CHAT
-    else {
+    // NORMAL STREAMING CHAT
 
-      controllerRef.current = new AbortController();
+    controllerRef.current = new AbortController();
 
-const response = await fetch("http://localhost:5000/api/chat/ask", {
-method: "POST",
-headers: {
-"Content-Type": "application/json",
-Authorization: `Bearer ${localStorage.getItem("token")}`
-},
-body: JSON.stringify({
-question,
-sessionId
-}),
-signal: controllerRef.current.signal
-});
+    const response = await fetch("http://localhost:5000/api/chat/ask", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+      },
+      body: JSON.stringify({
+        question,
+        sessionId
+      }),
+      signal: controllerRef.current.signal
+    });
 
-const reader = response.body?.getReader();
-const decoder = new TextDecoder();
+    if (!response.body) throw new Error("No response body");
 
-let aiText = "";
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
 
-setMessages(prev => [...prev, { role: "AI", content: "" }]);
+    let aiText = "";
+    let buffer = "";
 
-while (true) {
+    setMessages(prev => [...prev, { role: "AI", content: "" }]);
 
-const { done, value } = await reader!.read();
+    const updateUI = () => {
 
-if (done) break;
+      if (!buffer) return;
 
-const chunk = decoder.decode(value, { stream: true });
+      aiText += buffer;
+      buffer = "";
 
-aiText += chunk;
+      setMessages(prev => {
 
-setMessages(prev => {
+        const updated = [...prev];
 
-const updated = [...prev];
+        updated[updated.length - 1] = {
+          role: "AI",
+          content: aiText
+        };
 
-updated[updated.length - 1] = {
-role: "AI",
-content: aiText
-};
+        return updated;
 
-return updated;
+      });
 
-});
+    };
 
-}
+    const interval = setInterval(updateUI, 50);
+
+    while (true) {
+
+      const { done, value } = await reader.read();
+
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+
+      buffer += chunk;
 
     }
 
-    setLoading(false);
+    clearInterval(interval);
+    updateUI();
+
     setQuestion("");
 
-  } catch (error:any) {
+  } catch (error: any) {
 
-if (error.name === "AbortError") {
-console.log("Generation stopped");
-return;
-}
+    if (error.name === "AbortError") {
+      console.log("Generation stopped");
+      return;
+    }
 
-console.log("Chat error");
+    console.log("Chat error:", error);
 
-}finally {
+  } finally {
 
     setLoading(false);
 
   }
-
 };
 
   useEffect(() => {
@@ -238,26 +297,25 @@ return (
           >
             <div className="prose prose-invert prose-sm max-w-none">
 
-            {msg.image && (
-              <img
-                src={msg.image}
-                className="max-w-xs rounded mb-3 border border-neutral-700"
-              />
-            )}
+              {msg.image && (
+                <img
+                  src={msg.image}
+                  className="max-w-xs rounded mb-3 border border-neutral-700"
+                />
+              )}
 
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {msg.content}
-            </ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {msg.content}
+              </ReactMarkdown>
 
             </div>
 
-            {/* Regenerate button */}
             {msg.role === "AI" && index === messages.length - 1 && (
               <button
                 onClick={handleRegenerate}
-                className="text-xs text-blue-400 mt-3 hover:underline"
+                className="text-xs text-blue-400 mt-3 hover:underline flex items-center gap-1"
               >
-                <RefreshCw size={14} />Regenerate
+                <RefreshCw size={14} /> Regenerate
               </button>
             )}
           </div>
@@ -274,73 +332,154 @@ return (
 
     </div>
 
-    {/* Input */}
+    {/* Input Bar */}
 
-    {image && (
+    {noteFile && (
 
-      <div className="mb-3 relative w-fit">
+<div className="flex items-center gap-2 bg-neutral-800 px-3 py-2 rounded w-fit text-sm">
 
-      <img
-        src={URL.createObjectURL(image)}
-        className="w-32 h-24 object-cover rounded border border-neutral-700"
-      />
+<span>📝 {noteFile.name}</span>
 
-      <button
-      onClick={() => setImage(null)}
-      className="absolute top-1 right-1 text-xs bg-black px-2 py-1 rounded"
-      >
-      ✕
-      </button>
+<span className="text-green-400 text-xs">
+✔ Uploaded
+</span>
+
+<button
+onClick={()=>setNoteFile(null)}
+className="text-red-400 text-xs"
+>
+✕
+</button>
+
+</div>
+
+)}
+
+    <div className="mt-6 flex items-center gap-3 border-t border-neutral-700 pt-4">
+
+      {/* Attachment Menu */}
+      <div className="relative">
+
+        <button
+          onClick={()=>setShowAttachMenu(!showAttachMenu)}
+          className="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center text-lg"
+        >
+          +
+        </button>
+
+        {showAttachMenu && (
+
+          <div className="absolute bottom-12 left-0 bg-neutral-900 border border-neutral-700 w-44 rounded shadow-lg">
+
+            <button
+              onClick={()=>{
+                document.getElementById("imageInput")?.click()
+                setShowAttachMenu(false)
+              }}
+              className="block w-full text-left px-4 py-2 text-sm hover:bg-neutral-800"
+            >
+              🖼 Upload Image
+            </button>
+
+            <button
+              onClick={()=>{
+                document.getElementById("pdfInput")?.click()
+                setShowAttachMenu(false)
+              }}
+              className="block w-full text-left px-4 py-2 text-sm hover:bg-neutral-800"
+            >
+              📄 Upload PDF
+            </button>
+
+            <button
+              onClick={()=>{
+                document.getElementById("noteInput")?.click()
+                setShowAttachMenu(false)
+              }}
+              className="block w-full text-left px-4 py-2 text-sm hover:bg-neutral-800"
+            >
+              📝 Add Note
+            </button>
+
+          </div>
+
+        )}
 
       </div>
 
-    )}      
-    <div className="mt-6 flex gap-3 border-t border-neutral-700 pt-4">
-
+      {/* Question Input */}
       <input
         value={question}
         onChange={(e)=>setQuestion(e.target.value)}
         placeholder="Ask something..."
         disabled={loading}
         onKeyDown={(e)=>{
-if(e.key === "Enter"){
-handleAsk();
-}
-}}
+          if(e.key === "Enter"){
+            handleAsk();
+          }
+        }}
         className="flex-1 bg-neutral-900 border border-neutral-700 px-4 py-3 text-sm focus:outline-none focus:border-blue-500"
       />
 
-      <label className="cursor-pointer px-3 flex items-center">
-📎
-<input
-type="file"
-accept="image/*"
-onChange={(e)=>setImage(e.target.files?.[0] || null)}
-hidden
-/>
-</label>
-
+      {/* Ask / Stop Button */}
       {loading ? (
 
-<button
-onClick={handleStop}
-className="bg-red-600 text-white px-6 text-sm"
->
-Stop
-</button>
+        <button
+          onClick={handleStop}
+          className="bg-red-600 text-white px-6 text-sm"
+        >
+          Stop
+        </button>
 
-) : (
+      ) : (
 
-<button
-onClick={handleAsk}
-className="bg-blue-600 text-white px-6 text-sm"
->
-Ask
-</button>
+        <button
+          onClick={handleAsk}
+          className="bg-blue-600 text-white px-6 text-sm"
+        >
+          Ask
+        </button>
 
-)}
+      )}
 
     </div>
+
+    {/* Hidden Inputs */}
+
+    <input
+      id="imageInput"
+      type="file"
+      accept="image/*"
+      hidden
+      onChange={(e)=>setImage(e.target.files?.[0] || null)}
+    />
+
+    <input
+      id="pdfInput"
+      type="file"
+      accept=".pdf"
+      hidden
+      onChange={(e)=>{
+        const file = e.target.files?.[0];
+        if(file){
+          handlePdfUpload(file);
+        }
+      }}
+    />
+
+    <input
+      id="noteInput"
+      type="file"
+      accept=".txt,.md"
+      hidden
+      onChange={(e)=>{
+        const file = e.target.files?.[0];
+        if(file){
+          setNoteFile(file);
+          handleNoteUpload(file);
+        }
+      }}
+    />
 
   </div>
 );

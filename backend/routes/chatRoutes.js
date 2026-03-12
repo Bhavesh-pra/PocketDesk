@@ -10,6 +10,9 @@ require("../middleware/authMiddleware");
 const { chatImage } =
 require("../controllers/chatImageController");
 
+const { chatPdf } =
+require("../controllers/chatPdfController");
+
 const multer = require("multer");
 
 const storage =
@@ -62,6 +65,13 @@ router.delete(
 "/:sessionId",
 authMiddleware,
 deleteChat
+);
+
+router.post(
+"/pdf",
+authMiddleware,
+upload.single("pdf"),
+chatPdf
 );
 
 module.exports = router;

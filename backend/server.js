@@ -58,6 +58,10 @@ app.use("/api/pdf", pdfRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/auth", authRoutes);
 
+const noteRoutes = require("./routes/noteRoutes");
+
+app.use("/api/notes",noteRoutes);
+
 // Test Route
 
 app.get("/", (req,res)=>{
