@@ -59,6 +59,10 @@ message:"Delete failed"
 
 const uploadImage = async (req,res)=>{
 
+    console.log("FILE:", req.file);
+console.log("BODY:", req.body);
+
+
 try{
 
 const text = await extractTextFromImage(req.file.path);
@@ -118,7 +122,10 @@ const getImages = async (req,res)=>{
 
 try{
 
+const albumId = req.params.albumId;
+
 const images = await Image.find({
+albumId,
 userId:req.userId
 });
 
@@ -126,8 +133,10 @@ res.json(images);
 
 }catch(err){
 
+console.log(err);
+
 res.status(500).json({
-message:"Fetch failed"
+message:"Failed to load images"
 });
 
 }

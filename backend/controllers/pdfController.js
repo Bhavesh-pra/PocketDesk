@@ -33,9 +33,19 @@ try{
 // STEP 1 — Extract normal PDF text
 
 let text =
-await extractTextFromPDF(
+await extractTextFromPDF(req.file.path);
+
+// If no text → scanned PDF
+if(!text || text.trim().length < 50){
+
+console.log("Scanned PDF detected → running OCR");
+
+text =
+await extractTextFromScannedPDF(
 req.file.path
 );
+
+}
 
 
 // STEP 2 — If no text, run OCR
@@ -66,6 +76,10 @@ for(let chunkText of textChunks){
 
 const embedding =
 await getEmbedding(chunkText);
+
+if(chunkText.trim().length < 100){
+continue;
+}
 
 chunks.push({
 

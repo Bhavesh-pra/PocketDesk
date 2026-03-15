@@ -64,11 +64,11 @@ const convertPdfToImages = async (pdfPath) => {
 
 const convert = fromPath(pdfPath, {
 
-density: 150,
+density: 300,            // better OCR
 format: "png",
-width: 1200,
-height: 1200,
-savePath: "./temp"
+width: 2000,
+height: 2000,
+savePath: "./uploads/temp"
 
 });
 
@@ -76,7 +76,7 @@ const imagePaths = [];
 
 try {
 
-for(let page = 1; page <= 10; page++){
+for(let page = 1; page <= 80; page++){
 
 const result = await convert(page);
 

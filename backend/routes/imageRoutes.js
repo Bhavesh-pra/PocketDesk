@@ -16,7 +16,7 @@ upload
 );
 
 router.get(
-"/list",
+"/list/:albumId",
 authMiddleware,
 getImages
 );

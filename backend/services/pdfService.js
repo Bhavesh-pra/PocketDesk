@@ -40,17 +40,23 @@ return null;
 
 const splitIntoChunks = (text) => {
 
-    const chunkSize = 800;  // characters per chunk
+const chunkSize = 800;
+const overlap = 200;
 
-    let chunks = [];
+let chunks = [];
 
-    for(let i = 0; i < text.length; i += chunkSize){
+for(let i=0;i<text.length;i += (chunkSize - overlap)){
 
-        chunks.push(text.substring(i, i + chunkSize));
+const chunk =
+text.substring(i, i + chunkSize);
 
-    }
+if(chunk.trim().length > 100){
+chunks.push(chunk);
+}
 
-    return chunks;
+}
+
+return chunks;
 
 };
 
