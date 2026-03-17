@@ -4,20 +4,19 @@ const { addPdfChunks, loadChunks } =
 require("../services/chunkCacheService");
 
 const {
-extractTextFromPDF,
-splitIntoChunks
+  extractTextFromPDF,
+  splitIntoChunks
 } = require("../services/pdfService");
 
 const {
-extractTextFromScannedPDF
+  extractTextFromScannedPDF
 } = require("../services/ocrService");
 
 const {
-getEmbedding
+  getEmbedding
 } = require("../services/embeddingService");
 
 const fs = require("fs");
-
 
 
 /*
@@ -26,125 +25,133 @@ UPLOAD PDF
 -----------------------------------------
 */
 
-const uploadPdf = async (req,res)=>{
+const uploadPdf = async (req, res) => {
 
-try{
+  try {
 
-// STEP 1 — Extract normal PDF text
+    if (!req.file) {
+      return res.status(400).json({
+        message: "No file uploaded"
+      });
+    }
 
-let text =
-await extractTextFromPDF(req.file.path);
+    // STEP 1 — Try normal text extraction
+    let text = await extractTextFromPDF(req.file.path);
 
-// If no text → scanned PDF
-if(!text || text.trim().length < 50){
+    // STEP 2 — If scanned PDF → OCR
+    if (!text || text.trim().length < 50) {
 
-console.log("Scanned PDF detected → running OCR");
+      console.log("Scanned PDF detected → running OCR");
 
-text =
-await extractTextFromScannedPDF(
-req.file.path
-);
+      text = await extractTextFromScannedPDF(
+        req.file.path
+      );
 
-}
+    }
 
-
-// STEP 2 — If no text, run OCR
-
-if(!text || text.trim().length < 50){
-
-console.log("No text detected. Running OCR...");
-
-text =
-await extractTextFromScannedPDF(
-req.file.path
-);
-
-}
+    if (!text || text.trim().length < 50) {
+      return res.status(400).json({
+        message: "Could not extract text from PDF"
+      });
+    }
 
 
-// STEP 3 — Split into chunks
+    /*
+    -----------------------------------------
+    STEP 3 — Split into chunks
+    -----------------------------------------
+    */
 
-const textChunks =
-splitIntoChunks(text);
-
-
-// STEP 4 — Generate embeddings
-
-let chunks = [];
-
-for(let chunkText of textChunks){
-
-const embedding =
-await getEmbedding(chunkText);
-
-if(chunkText.trim().length < 100){
-continue;
-}
-
-chunks.push({
-
-text: chunkText,
-embedding: embedding
-
-});
-
-}
+    const textChunks = splitIntoChunks(text);
 
 
-// STEP 5 — Save PDF in DB
+    /*
+    -----------------------------------------
+    STEP 4 — Generate embeddings (PARALLEL)
+    -----------------------------------------
+    */
 
-const pdf = new Pdf({
-
-userId: req.userId,
-
-fileName:
-req.file.originalname,
-
-filePath:
-req.file.path,
-
-extractedText: text,
-
-chunks: chunks
-
-});
+    const embeddings = await Promise.all(
+      textChunks.map(chunk => getEmbedding(chunk))
+    );
 
 
-await pdf.save();
+    /*
+    -----------------------------------------
+    STEP 5 — Build chunk objects
+    -----------------------------------------
+    */
+
+    const chunks = textChunks
+      .map((chunkText, i) => ({
+        text: chunkText,
+        embedding: embeddings[i]
+      }))
+      .filter(chunk => chunk.text.trim().length > 100);
 
 
-// STEP 6 — Update memory cache
 
-addPdfChunks(req.userId, chunks);
+    /*
+    -----------------------------------------
+    STEP 6 — Save PDF in DB
+    -----------------------------------------
+    */
+
+    const pdf = new Pdf({
+
+      userId: req.userId,
+
+      fileName: req.file.originalname,
+
+      filePath: req.file.path,
+
+      extractedText: text,
+
+      chunks: chunks
+
+    });
+
+    await pdf.save();
 
 
-// Reload cache for safety
-await loadChunks();
+
+    /*
+    -----------------------------------------
+    STEP 7 — Update memory chunk cache
+    -----------------------------------------
+    */
+
+    addPdfChunks(req.userId, chunks);
+
+    await loadChunks();
 
 
-// RESPONSE
 
-res.json({
+    /*
+    -----------------------------------------
+    RESPONSE
+    -----------------------------------------
+    */
 
-message:
-"PDF Uploaded + Vectorized",
+    res.json({
 
-pdf: pdf
+      message: "Document processed successfully",
 
-});
+      pdf: pdf
 
+    });
 
-}catch(error){
+  } catch (error) {
 
-console.log(error);
+    console.error("PDF Upload Error:", error);
 
-res.status(500).json({
+    res.status(500).json({
 
-message:"Upload Failed"
+      message: "Upload Failed"
 
-});
+    });
 
-}
+  }
 
 };
 
@@ -157,32 +164,29 @@ GET ALL USER PDFs
 -----------------------------------------
 */
 
-const getAllPdfs =
-async (req,res)=>{
+const getAllPdfs = async (req, res) => {
 
-try{
+  try {
 
-const pdfs =
-await Pdf.find({
+    const pdfs = await Pdf.find({
 
-userId:req.userId
+      userId: req.userId
 
-});
+    });
 
+    res.json(pdfs);
 
-res.json(pdfs);
+  } catch (error) {
 
-}catch(error){
+    console.error(error);
 
-console.log(error);
+    res.status(500).json({
 
-res.status(500).json({
+      message: "Fetch Failed"
 
-message:"Fetch Failed"
+    });
 
-});
-
-}
+  }
 
 };
 
@@ -195,85 +199,80 @@ DELETE PDF
 -----------------------------------------
 */
 
-const deletePdf =
-async (req,res)=>{
+const deletePdf = async (req, res) => {
 
-try{
+  try {
 
-const pdf =
-await Pdf.findOne({
+    const pdf = await Pdf.findOne({
 
-_id:req.params.id,
+      _id: req.params.id,
 
-userId:req.userId
+      userId: req.userId
 
-});
+    });
 
-if(!pdf){
+    if (!pdf) {
 
-return res.status(404).json({
+      return res.status(404).json({
 
-message:"PDF Not Found"
+        message: "PDF Not Found"
 
-});
+      });
 
-}
+    }
 
 
-// Delete file from disk
+    // Delete file from disk
 
-if(fs.existsSync(pdf.filePath)){
+    if (fs.existsSync(pdf.filePath)) {
 
-fs.unlinkSync(pdf.filePath);
+      fs.unlinkSync(pdf.filePath);
 
-}
-
-
-// Delete from DB
-
-await Pdf.findOneAndDelete({
-
-_id:req.params.id,
-
-userId:req.userId
-
-});
+    }
 
 
-// Reload chunk cache
+    // Delete from DB
 
-await loadChunks();
+    await Pdf.findOneAndDelete({
 
+      _id: req.params.id,
 
-res.json({
+      userId: req.userId
 
-message:
-"PDF Deleted Successfully"
-
-});
+    });
 
 
-}catch(error){
+    // Reload chunk cache
 
-console.log(error);
+    await loadChunks();
 
-res.status(500).json({
 
-message:"Delete Failed"
+    res.json({
 
-});
+      message: "PDF Deleted Successfully"
 
-}
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+
+      message: "Delete Failed"
+
+    });
+
+  }
 
 };
 
 
 
-
 module.exports = {
 
-uploadPdf,
-getAllPdfs,
-deletePdf
+  uploadPdf,
+  getAllPdfs,
+  deletePdf
 
 };

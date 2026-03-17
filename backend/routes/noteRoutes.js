@@ -1,23 +1,27 @@
 const express = require("express");
-const multer = require("multer");
-
-const { uploadNote } =
-require("../controllers/noteController");
-
-const authMiddleware =
-require("../middleware/authMiddleware");
-
 const router = express.Router();
 
-const upload = multer({
-dest:"uploads/notes/"
+const authMiddleware = require("../middleware/authMiddleware");
+const multer = require("multer");
+
+const storage = multer.diskStorage({
+ destination:(req,file,cb)=>{
+  cb(null,"uploads/notes");
+ },
+ filename:(req,file,cb)=>{
+  cb(null,Date.now()+"-"+file.originalname);
+ }
 });
 
+const upload = multer({storage});
+
+const { uploadNote } = require("../controllers/noteController");
+
 router.post(
-"/upload",
-authMiddleware,
-upload.single("note"),
-uploadNote
+ "/upload",
+ authMiddleware,
+ upload.single("note"),
+ uploadNote
 );
 
 module.exports = router;

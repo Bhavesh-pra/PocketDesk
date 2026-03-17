@@ -30,6 +30,12 @@ const dataBuffer = fs.readFileSync(filePath);
 
 const data = await pdfParse(dataBuffer);
 
+// DEBUG LOGS
+console.log("----- PDF PARSE DEBUG -----");
+console.log("Extracted text length:", data.text.length);
+console.log("Sample text:", data.text.substring(0,200));
+console.log("---------------------------");
+
 if(data.text.trim().length > 50){
 return data.text;
 }
@@ -40,23 +46,36 @@ return null;
 
 const splitIntoChunks = (text) => {
 
-const chunkSize = 800;
-const overlap = 200;
+  const chunkSize = 1200;
+  const overlap = 250;
 
-let chunks = [];
+  const paragraphs = text.split(/\n+/);
 
-for(let i=0;i<text.length;i += (chunkSize - overlap)){
+  const chunks = [];
+  let currentChunk = "";
 
-const chunk =
-text.substring(i, i + chunkSize);
+  for (const para of paragraphs) {
 
-if(chunk.trim().length > 100){
-chunks.push(chunk);
-}
+    if ((currentChunk + para).length < chunkSize) {
 
-}
+      currentChunk += para + "\n";
 
-return chunks;
+    } else {
+
+      chunks.push(currentChunk.trim());
+
+      currentChunk =
+        currentChunk.slice(-overlap) + para + "\n";
+
+    }
+
+  }
+
+  if (currentChunk.trim().length > 0) {
+    chunks.push(currentChunk.trim());
+  }
+
+  return chunks;
 
 };
 

@@ -1,5 +1,8 @@
-const Tesseract = require("tesseract.js");
-const { fromPath } = require("pdf2pic");
+const poppler = require("pdf-poppler");
+const { createWorker } = require("tesseract.js");
+const fs = require("fs");
+const path = require("path");
+
 
 /*
 ---------------------------------------
@@ -9,92 +12,22 @@ OCR TEXT FROM SINGLE IMAGE
 
 const extractTextFromImage = async (imagePath) => {
 
-try {
+  try {
 
-const result = await Tesseract.recognize(
-imagePath,
-"eng",
-{
-logger: m => {}
-}
-);
+    const worker = await createWorker("eng");
 
-return result.data.text;
+    const { data } = await worker.recognize(imagePath);
 
-} catch (err) {
+    await worker.terminate();
 
-console.error("OCR image error:", err);
-return "";
+    return data.text;
 
-}
+  } catch (err) {
 
-};
+    console.error("OCR image error:", err);
+    return "";
 
-
-/*
----------------------------------------
-OCR TEXT FROM MULTIPLE IMAGES
----------------------------------------
-*/
-
-const extractTextFromImages = async (imagePaths) => {
-
-let combinedText = "";
-
-for(const img of imagePaths){
-
-const text = await extractTextFromImage(img);
-
-combinedText += text + "\n";
-
-}
-
-return combinedText;
-
-};
-
-
-/*
----------------------------------------
-CONVERT PDF PAGES → IMAGES
----------------------------------------
-*/
-
-const convertPdfToImages = async (pdfPath) => {
-
-const convert = fromPath(pdfPath, {
-
-density: 300,            // better OCR
-format: "png",
-width: 2000,
-height: 2000,
-savePath: "./uploads/temp"
-
-});
-
-const imagePaths = [];
-
-try {
-
-for(let page = 1; page <= 80; page++){
-
-const result = await convert(page);
-
-if(!result?.path){
-break;
-}
-
-imagePaths.push(result.path);
-
-}
-
-} catch(err){
-
-console.log("PDF conversion stopped");
-
-}
-
-return imagePaths;
+  }
 
 };
 
@@ -107,36 +40,61 @@ OCR TEXT FROM PDF (SCANNED)
 
 const extractTextFromScannedPDF = async (pdfPath) => {
 
-try {
+  const outputDir = path.join(__dirname, "../uploads/temp");
 
-const images =
-await convertPdfToImages(pdfPath);
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
 
-if(images.length === 0){
-return "";
-}
+  // Clean temp folder before processing
+  const oldFiles = fs.readdirSync(outputDir);
+  for (const file of oldFiles) {
+    fs.unlinkSync(path.join(outputDir, file));
+  }
 
-const text =
-await extractTextFromImages(images);
+  const options = {
+    format: "png",
+    out_dir: outputDir,
+    out_prefix: "page",
+    dpi: 300,
+    size: "2000x2000"
+  };
 
-return text;
+  console.log("Converting PDF pages to images...");
 
-} catch(err){
+  await poppler.convert(pdfPath, options);
 
-console.error("PDF OCR error:", err);
+  const images = fs.readdirSync(outputDir)
+    .filter(file => file.endsWith(".png"));
 
-return "";
+  console.log(`OCR processing ${images.length} pages`);
 
-}
+  const worker = await createWorker("eng");
+
+  let text = "";
+
+  for (const img of images) {
+
+    const imagePath = path.join(outputDir, img);
+
+    const { data } = await worker.recognize(imagePath);
+
+    text += data.text + "\n";
+
+    fs.unlinkSync(imagePath);
+
+  }
+
+  await worker.terminate();
+
+  return text;
 
 };
 
 
 module.exports = {
 
-extractTextFromImage,
-extractTextFromImages,
-convertPdfToImages,
-extractTextFromScannedPDF
+  extractTextFromImage,
+  extractTextFromScannedPDF
 
 };

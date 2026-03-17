@@ -53,7 +53,7 @@ questionEmbedding,
 chunk.embedding
 );
 
-rresults.push({
+results.push({
 
 text: chunk.text,
 score: similarity,

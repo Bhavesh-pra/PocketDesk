@@ -1,7 +1,7 @@
 const { askAI } = require("../services/aiService");
 const { semanticSearch } = require("../services/searchService");
 const Conversation = require("../models/conversation");
-
+const { rerankChunks } = require("../services/rerankService");
 
 // =============================
 // ASK QUESTION
@@ -24,12 +24,12 @@ message: "Question required"
 // 1. Semantic Search
 // =============================
 
-const topChunks = await semanticSearch(
-question,
-req.userId,
-3
-);
+// STEP 1 — Retrieve more candidates
+const candidates =
+await semanticSearch(question, req.userId, 20);
 
+const topChunks =
+await rerankChunks(question, candidates);
 
 // =============================
 // 2. Context Creation
