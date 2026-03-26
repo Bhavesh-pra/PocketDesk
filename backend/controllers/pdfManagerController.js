@@ -4,7 +4,7 @@ const getAllPdfs = async (req,res) => {
 
     try{
 
-        const pdfs = await Pdf.find().sort({uploadedAt:-1});
+        const pdfs = await Pdf.find({ userId: req.userId }).sort({uploadedAt:-1});
 
         res.json(pdfs);
 

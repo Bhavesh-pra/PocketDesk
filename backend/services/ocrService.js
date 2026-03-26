@@ -10,15 +10,34 @@ OCR TEXT FROM SINGLE IMAGE
 ---------------------------------------
 */
 
+let worker;
+let workerPromise;
+
+const initWorker = async () => {
+  if (worker) return worker;
+
+  if (!workerPromise) {
+    workerPromise = createWorker("eng").then((w) => {
+      worker = w;
+      return worker;
+    });
+  }
+
+  return workerPromise;
+};
+
 const extractTextFromImage = async (imagePath) => {
 
   try {
 
-    const worker = await createWorker("eng");
+    const worker = await initWorker();
 
     const { data } = await worker.recognize(imagePath);
 
-    await worker.terminate();
+    if (!data.text || data.text.trim().length < 10) {
+      console.log("⚠️ OCR returned very low text");
+      return "";
+    }
 
     return data.text;
 
@@ -85,9 +104,12 @@ const extractTextFromScannedPDF = async (pdfPath) => {
 
   }
 
-  await worker.terminate();
+  if (!text || text.trim().length < 50) {
+      console.log("⚠️ OCR failed for scanned PDF");
+      return "";
+    }
 
-  return text;
+    return text;
 
 };
 

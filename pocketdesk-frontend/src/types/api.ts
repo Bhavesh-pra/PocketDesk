@@ -1,5 +1,5 @@
 export interface AuthResponse {
-  token: string;
+  accessToken: string;
 }
 
 export interface Pdf {

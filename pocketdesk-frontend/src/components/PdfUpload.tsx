@@ -20,7 +20,8 @@ export default function PdfUpload({ onUploadSuccess }: Props) {
       const formData = new FormData();
       formData.append("pdf", file);
 
-      await API.post("/pdf/upload", formData);
+      const res = await API.post("/pdf/upload", formData);
+      console.log("UPLOAD RESPONSE:", res.data);
 
       setMessage("PDF Uploaded Successfully");
       setFile(null);

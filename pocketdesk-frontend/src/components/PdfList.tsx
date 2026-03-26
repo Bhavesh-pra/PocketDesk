@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../services/api";
 
 interface Pdf {
   _id: string;
@@ -18,26 +18,18 @@ export default function PdfList({ refresh }: Props) {
     fetchPdfs();
   }, [refresh]);
 
-  const fetchPdfs = async () => {
-    const token = localStorage.getItem("token");
 
-    const res = await axios.get("http://localhost:5000/api/pdf/all", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
+const fetchPdfs = async () => {
+  try {
+    const res = await API.get("/pdf/all");
     setPdfs(res.data);
-  };
+  } catch (err) {
+    console.log("PDF fetch failed", err);
+  }
+};
 
   const handleDelete = async (id: string) => {
-    const token = localStorage.getItem("token");
-
-    await axios.delete(`http://localhost:5000/api/pdf/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    await API.delete(`/pdf/${id}`);
 
     fetchPdfs();
   };

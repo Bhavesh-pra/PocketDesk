@@ -5,6 +5,7 @@ import { useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { RefreshCw } from "lucide-react";
+import { getAccessToken } from "../services/api";
 
 import API from "../services/api";
 
@@ -26,6 +27,7 @@ export default function Chat() {
   const [lastQuestion, setLastQuestion] = useState("");
   const { sessionId } = useParams();
   const [image, setImage] = useState<File | null>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const [uploadedPdf, setUploadedPdf] = useState<string | null>(null);
   const [showAttachMenu,setShowAttachMenu] = useState(false);
@@ -55,6 +57,14 @@ loadHistory();
 
 }, [sessionId]);
 
+useEffect(() => {
+  return () => {
+    if (image) {
+      URL.revokeObjectURL(URL.createObjectURL(image));
+    }
+  };
+}, [image]);
+
 const handleRegenerate = async () => {
 
   if (!lastQuestion) return;
@@ -63,7 +73,7 @@ const handleRegenerate = async () => {
 
     setLoading(true);
 
-    const res = await API.post<ChatResponse>("/chat/ask", {
+    const res = await API.post<ChatResponse>("/chat/ask?stream=false", {
       question: lastQuestion,
       sessionId: sessionId,
     });
@@ -134,7 +144,8 @@ const handlePdfUpload = async (file:File)=>{
 if(!file) return;
 
 const formData = new FormData();
-formData.append("pdf",file);
+formData.append("pdf", file);
+formData.append("sessionId", sessionId || ""); // 🔥 ADD THIS
 
 await API.post("/chat/pdf",formData,{
 headers:{
@@ -183,6 +194,8 @@ const handleAsk = async () => {
       ]);
 
       setImage(null);
+      setPdfFile(null);
+      setNoteFile(null);
       setQuestion("");
       return;
     }
@@ -191,18 +204,22 @@ const handleAsk = async () => {
 
     controllerRef.current = new AbortController();
 
-    const response = await fetch("http://localhost:5000/api/chat/ask", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`
-      },
-      body: JSON.stringify({
-        question,
-        sessionId
-      }),
-      signal: controllerRef.current.signal
-    });
+    
+const token = getAccessToken();
+
+const response = await fetch("http://localhost:5000/api/chat/ask", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}` // 🔥 FIX
+  },
+  credentials: "include",
+  body: JSON.stringify({
+    question,
+    sessionId
+  }),
+  signal: controllerRef.current.signal
+});
 
     if (!response.body) throw new Error("No response body");
 
@@ -334,26 +351,60 @@ return (
 
     {/* Input Bar */}
 
-    {noteFile && (
+    {/* Attachment Preview */}
+<div className="flex gap-3 mb-3 flex-wrap">
 
-<div className="flex items-center gap-2 bg-neutral-800 px-3 py-2 rounded w-fit text-sm">
+  {/* IMAGE PREVIEW */}
+  {image && (
+    <div className="flex items-center gap-2 bg-neutral-800 px-3 py-2 rounded">
 
-<span>📝 {noteFile.name}</span>
+      <img
+        src={URL.createObjectURL(image)}
+        className="w-14 h-14 object-cover rounded border border-neutral-700"
+      />
 
-<span className="text-green-400 text-xs">
-✔ Uploaded
-</span>
+      <button
+        onClick={() => setImage(null)}
+        className="text-red-400 text-xs"
+      >
+        ✕
+      </button>
+    </div>
+  )}
 
-<button
-onClick={()=>setNoteFile(null)}
-className="text-red-400 text-xs"
->
-✕
-</button>
+  {/* PDF PREVIEW */}
+  {pdfFile && (
+    <div className="flex items-center gap-2 bg-neutral-800 px-3 py-2 rounded">
+
+      <span>📄 {pdfFile.name}</span>
+
+      <button
+        onClick={() => setPdfFile(null)}
+        className="text-red-400 text-xs"
+      >
+        ✕
+      </button>
+    </div>
+  )}
+
+  {/* NOTE PREVIEW */}
+  {noteFile && (
+    <div className="flex items-center gap-2 bg-neutral-800 px-3 py-2 rounded">
+
+      <span>📝 {noteFile.name}</span>
+
+      <button
+        onClick={() => setNoteFile(null)}
+        className="text-red-400 text-xs"
+      >
+        ✕
+      </button>
+    </div>
+  )}
 
 </div>
 
-)}
+
 
     <div className="mt-6 flex items-center gap-3 border-t border-neutral-700 pt-4">
 
@@ -460,11 +511,12 @@ className="text-red-400 text-xs"
       accept=".pdf"
       hidden
       onChange={(e)=>{
-        const file = e.target.files?.[0];
+      const file = e.target.files?.[0];
         if(file){
-          handlePdfUpload(file);
-        }
-      }}
+        setPdfFile(file);      // ✅ preview
+        handlePdfUpload(file); // backend upload
+      } 
+    }}
     />
 
     <input

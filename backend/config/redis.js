@@ -5,4 +5,4 @@ const redis = new Redis({
   port: 6379
 });
 
-module.exports = null;
+module.exports = redis;

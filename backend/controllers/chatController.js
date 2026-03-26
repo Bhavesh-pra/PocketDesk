@@ -39,17 +39,25 @@ let context = "";
 
 if (topChunks.length > 0) {
 
-context = topChunks
-.map((c,i)=>`
-Source ${i+1}
+  context = topChunks
+    .map((c, i) => `
+Source ${i + 1}
 Type: ${c.sourceType || "document"}
 Name: ${c.sourceName || "unknown"}
 
 Content:
 ${c.text}
 `)
-.join("\n\n")
-.substring(0,2000);
+    .join("\n\n")
+    .substring(0, 2000);
+
+} else {
+
+  context = `
+No highly relevant documents were found.
+
+Try answering using general knowledge OR previous conversation if helpful.
+`;
 
 }
 
@@ -59,6 +67,22 @@ ${c.text}
 // =============================
 
 let historyText = "";
+
+let pdfContext = "";
+
+if (sessionId) {
+  const conversation = await Conversation.findOne({
+    sessionId,
+    userId: req.userId
+  });
+
+  if (conversation?.lastPdfChunks) {
+    pdfContext = conversation.lastPdfChunks
+      .slice(0, 5)
+      .map(c => c.text)
+      .join("\n\n");
+  }
+}
 
 if (sessionId) {
 
@@ -89,34 +113,53 @@ Use the following information to answer the user's question.
 Previous Conversation:
 ${historyText}
 
+Recent Uploaded Document:
+${pdfContext}
+
 Relevant Document Context:
 ${context}
 `;
-
 
 // =============================
 // 5. OpenAI Streaming
 // =============================
 
-const stream = await askAI(finalContext, question, true);
+const isStream = req.query.stream !== "false";
 
+const response = await askAI(finalContext, question, isStream);
+
+// ✅ NON-STREAM MODE (for regenerate)
+if (!isStream) {
+  return res.json({ answer: response });
+}
+
+// ✅ STREAM MODE
 res.setHeader("Content-Type", "text/plain");
 res.setHeader("Transfer-Encoding", "chunked");
-res.flushHeaders();
+
+res.flushHeaders();  // ✅ AFTER headers
 
 let fullAnswer = "";
 
-for await (const chunk of stream) {
+for await (const chunk of response) {
 
-const token = chunk.choices?.[0]?.delta?.content || "";
+  const token = chunk.choices?.[0]?.delta?.content || "";
 
-if (token) {
-
-fullAnswer += token;
-res.write(token);
+  if (token) {
+    fullAnswer += token;
+    res.write(token);
+  }
 
 }
 
+// ✅ FIX: send fallback if empty
+if (!fullAnswer || fullAnswer.trim().length < 5) {
+
+  const fallback = "Sorry, I couldn't generate a proper answer. Please try rephrasing your question.";
+
+  fullAnswer = fallback;
+
+  res.write(fallback);   // 🔥 VERY IMPORTANT
 }
 
 res.end();

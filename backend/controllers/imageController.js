@@ -76,8 +76,10 @@ for(let chunkText of textChunks){
 const embedding = await getEmbedding(chunkText);
 
 chunks.push({
-text: chunkText,
-embedding: embedding
+  text: chunkText,
+  embedding: embedding,
+  sourceType: "image",
+  sourceName: req.file.originalname
 });
 
 }

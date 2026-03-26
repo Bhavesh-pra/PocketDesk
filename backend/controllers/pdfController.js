@@ -83,11 +83,17 @@ const uploadPdf = async (req, res) => {
     */
 
     const chunks = textChunks
-      .map((chunkText, i) => ({
-        text: chunkText,
-        embedding: embeddings[i]
-      }))
-      .filter(chunk => chunk.text.trim().length > 100);
+    .map((chunkText, i) => ({
+    text: chunkText,
+    embedding: embeddings[i],
+    sourceType: "pdf",
+    sourceName: req.file.originalname
+  }))
+      .filter(chunk =>
+  chunk.text.trim().length > 100 &&
+  chunk.embedding &&
+  chunk.embedding.length > 0
+);
 
 
 
@@ -103,7 +109,7 @@ const uploadPdf = async (req, res) => {
 
       fileName: req.file.originalname,
 
-      filePath: req.file.path,
+      filePath: req.file.path.replace(/\\/g, "/"),
 
       extractedText: text,
 
@@ -122,8 +128,6 @@ const uploadPdf = async (req, res) => {
     */
 
     addPdfChunks(req.userId, chunks);
-
-    await loadChunks();
 
 
 

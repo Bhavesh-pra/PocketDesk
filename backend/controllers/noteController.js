@@ -10,8 +10,10 @@ require("../services/embeddingService");
 const { addPdfChunks } =
 require("../services/chunkCacheService");
 
+const Conversation = require("../models/conversation");
 
 const uploadNote = async (req,res)=>{
+const sessionId = req.body.sessionId;
 
 try{
 
@@ -42,6 +44,24 @@ sourceName:file.originalname
 }
 
 addPdfChunks(req.userId,chunks);
+
+if (sessionId) {
+  let conversation = await Conversation.findOne({
+    sessionId,
+    userId: req.userId
+  });
+
+  if (!conversation) {
+    conversation = new Conversation({
+      userId: req.userId,
+      sessionId,
+      messages: []
+    });
+  }
+
+  conversation.lastPdfChunks = chunks;
+  await conversation.save();
+}
 
 const note = new Note({
 

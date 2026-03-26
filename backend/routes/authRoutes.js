@@ -5,14 +5,14 @@ const router =
 express.Router();
 
 const {
+  signup,
+  login,
+  refresh,
+  logout
+} = require("../controllers/authController");
 
-signup,
-login
-
-} = require(
-"../controllers/authController"
-);
-
+router.post("/refresh", refresh);
+router.post("/logout", logout);
 
 router.post(
 "/signup",

@@ -1,5 +1,6 @@
 const axios = require("axios");
 const OpenAI = require("openai");
+require("dotenv").config();
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -90,6 +91,7 @@ ANSWER
     if (stream) {
   return completion;   // return stream iterator
 }
+console.log("OPENAI KEY:", process.env.OPENAI_API_KEY);
 
 return completion.choices[0].message.content;
   }

@@ -5,7 +5,13 @@ import { AuthContext } from "../context/AuthContext";
 export default function ProtectedRoute() {
   const context = useContext(AuthContext);
 
-  if (!context || !context.token) {
+  if (!context) return null;
+
+  if (context.loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!context.token) {
     return <Navigate to="/" />;
   }
 

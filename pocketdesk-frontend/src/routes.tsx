@@ -32,7 +32,6 @@ export default function AppRoutes() {
             <Route path="/home" element={<Home />} />
             <Route path="/chat/:sessionId" element={<Chat />} />
             <Route path="/pdfs" element={<PdfPage />} />
-            <Route path="/pdfs" element={<PDFPage />} />
             <Route path="/images" element={<ImagesPage />} />
             <Route path="/videos" element={<VideosPage />} />
             <Route path="/todo" element={<TodoPage />} />

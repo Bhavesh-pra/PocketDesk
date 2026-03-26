@@ -5,14 +5,17 @@ const { getUserChunks } =
 require("./chunkCacheService");
 
 
-const cosineSimilarity =
-(vecA, vecB)=>{
+const cosineSimilarity = (vecA, vecB) => {
+
+if (!vecA?.length || !vecB?.length) {
+  return 0;
+}
 
 let dot = 0;
 let normA = 0;
 let normB = 0;
 
-for(let i=0;i<vecA.length;i++){
+for (let i = 0; i < vecA.length; i++) {
 
 dot += vecA[i]*vecB[i];
 normA += vecA[i]*vecA[i];
@@ -67,10 +70,10 @@ sourceName: chunk.sourceName
 
 results.sort((a,b)=>b.score-a.score);
 
-const filtered = results.filter(r => r.score > 0.35);
+const filtered = results.filter(r => r.score > 0.2);
 
-if(filtered.length === 0){
-return [];
+if (filtered.length === 0) {
+  return results.slice(0, topK); // fallback
 }
 
 return filtered.slice(0, topK);

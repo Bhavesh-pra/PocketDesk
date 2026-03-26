@@ -24,7 +24,8 @@ app.use(cors({
 // Middleware
 app.use(express.json());
 
-
+const cookieParser = require("cookie-parser");
+app.use(cookieParser());
 
 const albumRoutes = require("./routes/albumRoutes");
 
@@ -36,14 +37,10 @@ app.use("/api/images",imageRoutes);
 
 app.use("/uploads",express.static("uploads"));
 
-// Connect Database
-
-connectDB();
-
-
-// Load Chunk Cache
-
-loadChunks();
+// Connect DB → then load cache
+connectDB().then(async () => {
+  await loadChunks();
+});
 
 
 // Routes

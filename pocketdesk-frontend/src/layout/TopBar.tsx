@@ -1,6 +1,7 @@
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import API from "../services/api";
 
 export default function TopBar() {
   const context = useContext(AuthContext);
@@ -22,7 +23,8 @@ export default function TopBar() {
 
       {/* Logout */}
       <button
-        onClick={() => {
+        onClick={async () => {
+          await API.post("/auth/logout");
           logout();
           navigate("/");
         }}
