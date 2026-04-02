@@ -76,7 +76,6 @@ const extractTextFromScannedPDF = async (pdfPath) => {
     out_dir: outputDir,
     out_prefix: "page",
     dpi: 300,
-    size: "2000x2000"
   };
 
   console.log("Converting PDF pages to images...");
@@ -103,6 +102,8 @@ const extractTextFromScannedPDF = async (pdfPath) => {
     fs.unlinkSync(imagePath);
 
   }
+
+  await worker.terminate();
 
   if (!text || text.trim().length < 50) {
       console.log("⚠️ OCR failed for scanned PDF");

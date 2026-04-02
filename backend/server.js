@@ -66,7 +66,6 @@ app.get("/", (req,res)=>{
 res.send("PocketDesk API Running");
 
 });
-app.use("/uploads", express.static("uploads"));
 
 // Server
 

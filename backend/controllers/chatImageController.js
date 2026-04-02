@@ -63,17 +63,6 @@ if (!conversation) {
 
 }
 
-if(!conversation){
-
-conversation = new Conversation({
-
-sessionId,
-messages:[]
-
-});
-
-}
-
 conversation.messages.push({
 role:"User",
 content:question

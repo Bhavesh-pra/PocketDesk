@@ -207,7 +207,9 @@ const handleAsk = async () => {
     
 const token = getAccessToken();
 
-const response = await fetch("http://localhost:5000/api/chat/ask", {
+const BASE_URL = import.meta.env.VITE_API_URL;
+
+const response = await fetch(`${BASE_URL}/api/chat/ask`, {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -536,3 +538,4 @@ return (
   </div>
 );
 }
+

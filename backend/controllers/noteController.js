@@ -25,23 +25,16 @@ fs.readFileSync(file.path,"utf8");
 const textChunks =
 splitIntoChunks(text);
 
-let chunks = [];
+const embeddings = await Promise.all(
+  textChunks.map(chunk => getEmbedding(chunk))
+);
 
-for(const chunkText of textChunks){
-
-const embedding =
-await getEmbedding(chunkText);
-
-chunks.push({
-
-text: chunkText,
-embedding,
-sourceType:"note",
-sourceName:file.originalname
-
-});
-
-}
+const chunks = textChunks.map((chunkText, i) => ({
+  text: chunkText,
+  embedding: embeddings[i],
+  sourceType:"note",
+  sourceName:file.originalname
+}));
 
 addPdfChunks(req.userId,chunks);
 

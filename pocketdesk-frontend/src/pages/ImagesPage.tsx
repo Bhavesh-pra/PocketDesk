@@ -79,7 +79,7 @@ return(
 <div className="space-y-8">
 
   <button
-  onClick={() => navigate("/Home")}
+  onClick={() => navigate("/home")}
   className="text-sm text-blue-400 hover:underline"
 >
 ← Back to Home

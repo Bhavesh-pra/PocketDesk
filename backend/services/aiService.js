@@ -84,14 +84,13 @@ ANSWER
     { role: "user", content: prompt }
   ],
   temperature: 0.6,
-  max_tokens: 600,
+  max_tokens: 1200,
   stream: stream
 });
 
     if (stream) {
   return completion;   // return stream iterator
 }
-console.log("OPENAI KEY:", process.env.OPENAI_API_KEY);
 
 return completion.choices[0].message.content;
   }
