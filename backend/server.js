@@ -12,11 +12,13 @@ require("./services/chunkCacheService");
 const authRoutes =
 require("./routes/authRoutes");
 
+require("./workers/reminderWorker");
+
 const app = express();
 
 app.use(cors({
   origin: "http://localhost:5173",
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
@@ -44,6 +46,10 @@ connectDB().then(async () => {
 
 
 // Routes
+
+const todoRoutes = require("./routes/todoRoutes");
+
+app.use("/api/todo", todoRoutes);
 
 const chatRoutes =
 require("./routes/chatRoutes");

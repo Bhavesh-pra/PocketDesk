@@ -26,6 +26,7 @@
     "pdf-parse": "^1.1.1",
     "pdf-poppler": "^0.2.3",
     "pdf2pic": "^3.2.0",
+    "resend": "^6.10.0",
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
