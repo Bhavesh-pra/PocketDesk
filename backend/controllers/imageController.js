@@ -2,7 +2,7 @@ const Image = require("../models/image");
 const { extractTextFromImage } = require("../services/ocrService");
 const { splitIntoChunks } = require("../services/pdfService");
 const { getEmbedding } = require("../services/embeddingService");
-const { loadChunks } = require("../services/chunkCacheService");
+const { addImageChunks, loadChunks } = require("../services/chunkCacheService");
 
 const fs = require("fs");
 
@@ -101,6 +101,9 @@ chunks: chunks
 });
 
 await image.save();
+
+// FIX: add to in-memory chunk cache so images are immediately searchable
+addImageChunks(req.userId, chunks);
 
 res.json({
 message:"Image uploaded + vectorized",

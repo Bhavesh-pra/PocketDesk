@@ -25,7 +25,9 @@ const pdfSchema = new mongoose.Schema({
     chunks: [
         {
             text: String,
-            embedding: [Number]
+            embedding: [Number],
+            sourceType: String,
+            sourceName: String
         }
     ],
 
@@ -35,5 +37,7 @@ const pdfSchema = new mongoose.Schema({
     }
 
 });
+
+pdfSchema.index({ userId: 1 });
 
 module.exports = mongoose.model("Pdf", pdfSchema);

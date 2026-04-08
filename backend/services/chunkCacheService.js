@@ -1,5 +1,6 @@
 const Pdf = require("../models/pdf");
 const Image = require("../models/image");
+const Video = require("../models/video");
 
 let chunkCache = {};
 
@@ -9,6 +10,7 @@ const loadChunks = async () => {
 
 const pdfs = await Pdf.find();
 const images = await Image.find();
+const videos = await Video.find();
 
 chunkCache = {};
 
@@ -37,6 +39,22 @@ chunkCache[userId] = [];
 if(img.chunks){
 chunkCache[userId] =
 chunkCache[userId].concat(img.chunks);
+}
+
+});
+
+// Load video transcript chunks on startup
+videos.forEach(video => {
+
+const userId = video.userId.toString();
+
+if(!chunkCache[userId]){
+chunkCache[userId] = [];
+}
+
+if(video.chunks){
+chunkCache[userId] =
+chunkCache[userId].concat(video.chunks);
 }
 
 });

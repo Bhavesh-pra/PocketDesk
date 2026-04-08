@@ -39,4 +39,6 @@ const todoSchema = new mongoose.Schema({
 }
 });
 
+todoSchema.index({ userId: 1, scheduledTime: 1 });
+
 module.exports = mongoose.model("Todo", todoSchema);

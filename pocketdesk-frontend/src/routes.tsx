@@ -35,7 +35,6 @@ export default function AppRoutes() {
             <Route path="/images" element={<ImagesPage />} />
             <Route path="/videos" element={<VideosPage />} />
             <Route path="/todo" element={<TodoPage />} />
-            <Route path="/images" element={<ImagesPage />} />
 
             <Route path="/images/:albumId" element={<AlbumPage />} />
 

@@ -159,7 +159,8 @@ res.cookie("refreshToken", refreshToken, {
 });
 
 res.json({
-  accessToken
+  accessToken,
+  email: user.email
 });
 
 
@@ -187,7 +188,9 @@ const refresh = async (req, res) => {
 
     const accessToken = generateAccessToken(decoded.userId);
 
-    res.json({ accessToken });
+    const user = await User.findById(decoded.userId).select("email");
+
+    res.json({ accessToken, email: user?.email || "" });
 
   } catch (err) {
     res.status(401).json({ message: "Invalid refresh token" });

@@ -63,6 +63,9 @@ app.use("/api/auth", authRoutes);
 
 const noteRoutes = require("./routes/noteRoutes");
 
+const videoRoutes = require("./routes/videoRoutes");
+app.use("/api/video", videoRoutes);
+
 app.use("/api/notes",noteRoutes);
 
 // Test Route

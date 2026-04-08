@@ -15,7 +15,9 @@ text:String,
 
 chunks:[{
 text:String,
-embedding:[Number]
+embedding:[Number],
+sourceType:String,
+sourceName:String
 }],
 
 createdAt:{

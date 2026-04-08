@@ -26,7 +26,7 @@ export default function Login() {
       });
       console.log("LOGIN TOKEN:", res.data.accessToken);
 
-      login(res.data.accessToken);
+      login(res.data.accessToken, email);
       navigate("/home");
 
     } catch (err: any) {

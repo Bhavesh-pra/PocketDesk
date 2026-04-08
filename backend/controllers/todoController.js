@@ -21,7 +21,7 @@ const createTodo = async (req, res) => {
 
     // ⏰ Schedule job
     const delay =
-      new Date(scheduledTime).getTime() - Date.now();
+      new Date(scheduledTime).getTime() - Date.now() - (60 * 60 * 1000);
 
     if (delay > 0) {
       await reminderQueue.add(

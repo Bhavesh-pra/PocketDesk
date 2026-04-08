@@ -32,6 +32,8 @@ default: Date.now
 
 });
 
+conversationSchema.index({ userId: 1, sessionId: 1 });
+
 module.exports = mongoose.model(
 "Conversation",
 conversationSchema

@@ -76,12 +76,7 @@ useEffect(() => {
   return (
     <div className="w-56 bg-neutral-800 border-r border-neutral-700 flex flex-col">
 
-      {/* Logo */}
-      <div className="px-6 py-6 text-lg font-semibold border-b border-neutral-700">
-        PocketDesk
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pt-2">
 
         {navItem("/home", "Home")}
 
