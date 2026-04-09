@@ -4,7 +4,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 
-import PDFPage from "./pages/PdfPage";
+// PDFPage removed duplicate
 import ImagesPage from "./pages/ImagesPage";
 import VideosPage from "./pages/VideosPage";
 import TodoPage from "./pages/TodoPage";
@@ -14,6 +14,8 @@ import Home from "./pages/Home";
 import Chat from "./pages/Chat";
 import PdfPage from "./pages/PdfPage";
 import AlbumPage from "./pages/AlbumPage";
+import AdminRoute from "./components/AdminRoute";
+import AdminDashboard from "./pages/AdminDashboard";
 
 export default function AppRoutes() {
   return (
@@ -40,6 +42,11 @@ export default function AppRoutes() {
 
           </Route>
 
+        </Route>
+
+        {/* Admin Routes */}
+        <Route element={<AdminRoute />}>
+          <Route path="/admin" element={<AdminDashboard />} />
         </Route>
 
       </Routes>

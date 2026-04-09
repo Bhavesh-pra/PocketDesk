@@ -26,7 +26,7 @@ export default function Signup() {
       });
 
       // auto login after signup
-      login(res.data.accessToken, email);
+      login(res.data.accessToken, res.data.email, res.data.role);
       navigate("/home");
 
     } catch (err: any) {

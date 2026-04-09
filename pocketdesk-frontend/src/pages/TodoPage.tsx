@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import API from "../services/api";
 
 interface Todo {
@@ -10,6 +12,7 @@ interface Todo {
 }
 
 export default function TodoPage() {
+  const navigate = useNavigate();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [text, setText] = useState("");
   const [date, setDate] = useState("");
@@ -129,9 +132,20 @@ export default function TodoPage() {
   const { overdue, today, upcoming } = groupTodos();
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 text-neutral-100">
 
-      <h1 className="text-2xl text-neutral-100">To-Do List</h1>
+      {/* Header */}
+      <div>
+        <button 
+          onClick={() => navigate("/home")}
+          className="flex items-center gap-2 text-neutral-500 hover:text-white transition-colors mb-4 group"
+        >
+          <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+          <span className="text-sm font-medium">Back to Home</span>
+        </button>
+
+        <h1 className="text-2xl font-bold text-white">To-Do List</h1>
+      </div>
 
       {/* ADD TASK */}
       <div className="bg-neutral-900 border border-neutral-700 p-6 space-y-4">

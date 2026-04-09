@@ -57,12 +57,11 @@ if (sessionId) {
 }
 
 const note = new Note({
-
-userId:req.userId,
-fileName:file.originalname,
-filePath:file.path,
-text
-
+  userId: req.userId,
+  fileName: file.originalname,
+  filePath: file.path,
+  text,
+  size: file.size
 });
 
 await note.save();

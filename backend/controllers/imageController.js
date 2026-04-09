@@ -94,11 +94,10 @@ fileName: req.file.originalname,
 
 filePath: req.file.path,
 
-extractedText: text,
-
-chunks: chunks
-
-});
+    extractedText: text,
+    chunks: chunks,
+    size: req.file.size
+  });
 
 await image.save();
 

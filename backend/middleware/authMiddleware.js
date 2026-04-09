@@ -30,8 +30,9 @@ process.env.JWT_SECRET
 );
 
 
-req.userId =
-decoded.userId;
+req.userId = decoded.userId;
+req.userRole = decoded.role;
+req.userEmail = decoded.email;
 
 
 next();

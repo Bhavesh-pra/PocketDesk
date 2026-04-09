@@ -1,5 +1,6 @@
 import { useEffect,useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import API from "../services/api";
 
 interface Image {
@@ -83,12 +84,13 @@ return(
 
 <div className="space-y-8">
 
-    <button
-      onClick={() => navigate("/images")}
-      className="text-sm text-blue-400 hover:underline"
-    >
-    ← Back to Albums
-    </button>
+      <button 
+        onClick={() => navigate("/images")}
+        className="flex items-center gap-2 text-neutral-500 hover:text-white transition-colors mb-4 group"
+      >
+        <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+        <span className="text-sm font-medium">Back to Albums</span>
+      </button>
 
 <h1 className="text-xl text-white">
 Album Images

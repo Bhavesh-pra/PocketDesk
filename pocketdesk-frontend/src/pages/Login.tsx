@@ -26,8 +26,13 @@ export default function Login() {
       });
       console.log("LOGIN TOKEN:", res.data.accessToken);
 
-      login(res.data.accessToken, email);
-      navigate("/home");
+      login(res.data.accessToken, res.data.email, res.data.role);
+      
+      if (res.data.role === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/home");
+      }
 
     } catch (err: any) {
       setError(err.response?.data?.message || "Login failed");

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import API from "../services/api";
 
 interface Video {
@@ -24,11 +26,23 @@ function extractYouTubeId(url: string): string | null {
 }
 
 export default function VideosPage() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("youtube");
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-neutral-100">Videos</h1>
+      {/* Header */}
+      <div>
+        <button 
+          onClick={() => navigate("/home")}
+          className="flex items-center gap-2 text-neutral-500 hover:text-white transition-colors mb-4 group"
+        >
+          <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+          <span className="text-sm font-medium">Back to Home</span>
+        </button>
+
+        <h1 className="text-xl font-bold text-white">Videos</h1>
+      </div>
 
       {/* Tab switcher */}
       <div className="flex gap-1 border-b border-neutral-700">

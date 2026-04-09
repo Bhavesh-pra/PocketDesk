@@ -7,9 +7,9 @@ require("bcryptjs");
 const jwt =
 require("jsonwebtoken");
 
-const generateAccessToken = (userId) => {
+const generateAccessToken = (userId, role, email) => {
   return jwt.sign(
-    { userId },
+    { userId, role, email },
     process.env.JWT_SECRET,
     { expiresIn: "15m" }
   );
@@ -76,8 +76,7 @@ password:hashedPassword
 
 
 // Create token
-
-const accessToken = generateAccessToken(user._id);
+const accessToken = generateAccessToken(user._id, user.role, user.email);
 const refreshToken = generateRefreshToken(user._id);
 
 res.cookie("refreshToken", refreshToken, {
@@ -87,7 +86,9 @@ res.cookie("refreshToken", refreshToken, {
 });
 
 res.json({
-  accessToken
+  accessToken,
+  email: user.email,
+  role: user.role
 });
 
 
@@ -147,9 +148,12 @@ message:"Wrong password"
 }
 
 
-// Create token
+// Update lastLogin
+user.lastLogin = new Date();
+await user.save();
 
-const accessToken = generateAccessToken(user._id);
+// Create token
+const accessToken = generateAccessToken(user._id, user.role, user.email);
 const refreshToken = generateRefreshToken(user._id);
 
 res.cookie("refreshToken", refreshToken, {
@@ -160,7 +164,8 @@ res.cookie("refreshToken", refreshToken, {
 
 res.json({
   accessToken,
-  email: user.email
+  email: user.email,
+  role: user.role
 });
 
 
@@ -185,12 +190,10 @@ const refresh = async (req, res) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId).select("email role");
+    const accessToken = generateAccessToken(decoded.userId, user?.role, user?.email);
 
-    const accessToken = generateAccessToken(decoded.userId);
-
-    const user = await User.findById(decoded.userId).select("email");
-
-    res.json({ accessToken, email: user?.email || "" });
+    res.json({ accessToken, email: user?.email || "", role: user?.role || "user" });
 
   } catch (err) {
     res.status(401).json({ message: "Invalid refresh token" });

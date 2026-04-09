@@ -49,7 +49,8 @@ const uploadVideo = async (req, res) => {
       fileName: req.file.originalname,
       filePath: videoPath,
       transcript,
-      chunks
+      chunks,
+      size: req.file.size
     });
 
     // FIX: add to in-memory chunk cache immediately so RAG works without restart

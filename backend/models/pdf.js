@@ -31,6 +31,10 @@ const pdfSchema = new mongoose.Schema({
         }
     ],
 
+    size: {
+        type: Number,
+        default: 0
+    },
     uploadedAt: {
         type: Date,
         default: Date.now

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import API from "../services/api";
 
 interface Album {
@@ -62,6 +63,14 @@ export default function ImagesPage() {
     <div className="space-y-8">
       {/* Header */}
       <div>
+        <button 
+          onClick={() => navigate("/home")}
+          className="flex items-center gap-2 text-neutral-500 hover:text-white transition-colors mb-4 group"
+        >
+          <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+          <span className="text-sm font-medium">Back to Home</span>
+        </button>
+
         <div className="flex items-center gap-3 mb-1">
           <div className="w-9 h-9 rounded-lg bg-purple-500/10 flex items-center justify-center">
             <svg className="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

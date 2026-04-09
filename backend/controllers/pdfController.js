@@ -112,9 +112,8 @@ const uploadPdf = async (req, res) => {
       filePath: req.file.path.replace(/\\/g, "/"),
 
       extractedText: text,
-
-      chunks: chunks
-
+      chunks: chunks,
+      size: req.file.size
     });
 
     await pdf.save();

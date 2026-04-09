@@ -27,6 +27,11 @@ sourceName:String
 }
 ],
 
+size: {
+  type: Number,
+  default: 0
+},
+
 createdAt:{
 type:Date,
 default:Date.now

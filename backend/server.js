@@ -54,12 +54,13 @@ app.use("/api/todo", todoRoutes);
 const chatRoutes =
 require("./routes/chatRoutes");
 
-const pdfRoutes =
-require("./routes/pdfRoutes");
+const pdfRoutes = require("./routes/pdfRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 app.use("/api/pdf", pdfRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRoutes);
 
 const noteRoutes = require("./routes/noteRoutes");
 
