@@ -3,7 +3,7 @@ import { AuthContext } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 
-export default function TopBar() {
+export default function TopBar({ onToggleMobile }: { onToggleMobile?: () => void }) {
   const context = useContext(AuthContext);
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -26,8 +26,18 @@ export default function TopBar() {
   return (
     <div className="h-14 bg-neutral-900 border-b border-neutral-700/60 flex items-center justify-between px-6 shrink-0">
 
-      {/* Left — Logo */}
-      <div className="flex items-center gap-2.5">
+      {/* Left — Logo + Hamburger */}
+      <div className="flex items-center gap-3">
+        {/* Hamburger */}
+        <button 
+          className="md:hidden p-1.5 -ml-2 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 transition"
+          onClick={onToggleMobile}
+        >
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+
         {/* Icon mark */}
         <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-900/40">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">

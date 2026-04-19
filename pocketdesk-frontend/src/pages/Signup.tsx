@@ -8,13 +8,13 @@ export default function Signup() {
   const context = useContext(AuthContext);
   const navigate = useNavigate();
 
-  if (!context) return null;
-
-  const { login } = context;
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  if (!context) return null;
+
+  const { login } = context;
 
   const handleSignup = async () => {
     try {
@@ -29,8 +29,14 @@ export default function Signup() {
       login(res.data.accessToken, res.data.email, res.data.role);
       navigate("/home");
 
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Signup failed");
+    } catch (err) {
+      const error = err as { response?: { data?: { error?: string; message?: string; details?: string[] } } };
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || "Signup failed";
+      if (error.response?.data?.details) {
+        setError(error.response.data.details.join(". "));
+      } else {
+        setError(errorMsg);
+      }
     }
   };
 
@@ -54,7 +60,7 @@ export default function Signup() {
                 type="email"
                 autoComplete="email"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-neutral-100 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-neutral-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -96,7 +102,7 @@ export default function Signup() {
           <div className="text-center">
             <p className="text-sm text-gray-600">
               Already have an account?{" "}
-              <Link to="/" className="font-medium text-indigo-600 hover:text-indigo-500">
+              <Link to="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
                 Sign in
               </Link>
             </p>

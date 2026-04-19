@@ -15,16 +15,32 @@ const generateAccessToken = (userId, role, email) => {
   );
 };
 
-const generateRefreshToken = (userId) => {
+const generateRefreshToken = (userId, version) => {
   return jwt.sign(
-    { userId },
+    { userId, version },
     process.env.JWT_SECRET,
     { expiresIn: "7d" }
   );
 };
 
-// SIGNUP
+const isValidEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
 
+const isStrongPassword = (password) => {
+  if (password.length < 8) return false;
+  const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  return hasUpper && hasLower && hasNumber;
+};
+
+const errorResponse = (res, status, message) => {
+  return res.status(status).json({ error: message });
+};
+
+// SIGNUP
 const signup =
 async (req,res)=>{
 
@@ -34,58 +50,48 @@ const { email, password } =
 req.body;
 
 if(!email || !password){
-
-return res.status(400).json({
-message:"Email and password required"
-});
-
+  return errorResponse(res, 400, "Email and password are required");
 }
 
+const normalizedEmail = email.toLowerCase().trim();
 
-// Check existing user
+if(!isValidEmail(normalizedEmail)){
+  return errorResponse(res, 400, "Invalid email format");
+}
+
+if(!isStrongPassword(password)){
+  return errorResponse(res, 400, "Password must be at least 8 characters with uppercase, lowercase, and number");
+}
 
 const existingUser =
 await User.findOne({
-email
+email: normalizedEmail
 });
 
 if(existingUser){
-
-return res.status(400).json({
-message:"User already exists"
-});
-
+  return errorResponse(res, 400, "User already exists");
 }
 
-
-// Hash password
-
 const hashedPassword =
-await bcrypt.hash(password,10);
-
-
-// Save user
+await bcrypt.hash(password,12);
 
 const user =
 await User.create({
-
-email,
-password:hashedPassword
-
+  email: normalizedEmail,
+  password: hashedPassword
 });
 
-
-// Create token
 const accessToken = generateAccessToken(user._id, user.role, user.email);
-const refreshToken = generateRefreshToken(user._id);
+const refreshToken = generateRefreshToken(user._id, user.refreshTokenVersion);
 
 res.cookie("refreshToken", refreshToken, {
   httpOnly: true,
-  secure: false, // change to true in production
-  sameSite: "strict"
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "strict",
+  maxAge: 7 * 24 * 60 * 60 * 1000
 });
 
-res.json({
+res.status(201).json({
   accessToken,
   email: user.email,
   role: user.role
@@ -93,13 +99,8 @@ res.json({
 
 
 }catch(err){
-
-console.log(err);
-
-res.status(500).json({
-message:"Signup error"
-});
-
+  console.error("Signup error:", err);
+  errorResponse(res, 500, "Signup failed");
 }
 
 };
@@ -107,7 +108,6 @@ message:"Signup error"
 
 
 // LOGIN
-
 const login =
 async (req,res)=>{
 
@@ -117,21 +117,24 @@ const { email, password } =
 req.body;
 
 
+if(!email || !password){
+  return errorResponse(res, 400, "Email and password are required");
+}
+
+const normalizedEmail = email.toLowerCase().trim();
+
 const user =
 await User.findOne({
-email
+email: normalizedEmail
 });
 
 if(!user){
-
-return res.status(400).json({
-message:"User not found"
-});
-
+  return errorResponse(res, 401, "Invalid credentials");
 }
 
-
-// Compare password
+if(!user.isActive){
+  return errorResponse(res, 403, "Account is deactivated");
+}
 
 const valid =
 await bcrypt.compare(
@@ -140,26 +143,20 @@ user.password
 );
 
 if(!valid){
-
-return res.status(400).json({
-message:"Wrong password"
-});
-
+  return errorResponse(res, 401, "Invalid credentials");
 }
 
-
-// Update lastLogin
 user.lastLogin = new Date();
 await user.save();
 
-// Create token
 const accessToken = generateAccessToken(user._id, user.role, user.email);
-const refreshToken = generateRefreshToken(user._id);
+const refreshToken = generateRefreshToken(user._id, user.refreshTokenVersion);
 
 res.cookie("refreshToken", refreshToken, {
   httpOnly: true,
-  secure: false,
-  sameSite: "strict"
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "strict",
+  maxAge: 7 * 24 * 60 * 60 * 1000
 });
 
 res.json({
@@ -170,13 +167,8 @@ res.json({
 
 
 }catch(err){
-
-console.log(err);
-
-res.status(500).json({
-message:"Login error"
-});
-
+  console.error("Login error:", err);
+  errorResponse(res, 500, "Login failed");
 }
 
 };
@@ -186,23 +178,161 @@ const refresh = async (req, res) => {
     const token = req.cookies.refreshToken;
 
     if (!token) {
-      return res.status(401).json({ message: "No refresh token" });
+      return errorResponse(res, 401, "No refresh token");
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.userId).select("email role");
-    const accessToken = generateAccessToken(decoded.userId, user?.role, user?.email);
+    const user = await User.findById(decoded.userId).select("email role refreshTokenVersion isActive");
 
-    res.json({ accessToken, email: user?.email || "", role: user?.role || "user" });
+    if (!user) {
+      return errorResponse(res, 401, "User not found");
+    }
+
+    if (!user.isActive) {
+      return errorResponse(res, 403, "Account is deactivated");
+    }
+
+    if (user.refreshTokenVersion !== decoded.version) {
+      return errorResponse(res, 401, "Refresh token invalidated");
+    }
+
+    const newVersion = user.refreshTokenVersion + 1;
+    user.refreshTokenVersion = newVersion;
+    await user.save();
+
+    const accessToken = generateAccessToken(user._id, user.role, user.email);
+    const newRefreshToken = generateRefreshToken(user._id, newVersion);
+
+    res.cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    res.json({ accessToken, email: user.email || "", role: user.role || "user" });
 
   } catch (err) {
-    res.status(401).json({ message: "Invalid refresh token" });
+    console.error("Refresh error:", err);
+    errorResponse(res, 401, "Invalid refresh token");
   }
 };
 
-const logout = (req, res) => {
+const logout = async (req, res) => {
+  try {
+    const token = req.cookies.refreshToken;
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      await User.findByIdAndUpdate(decoded.userId, { $inc: { refreshTokenVersion: 1 } });
+    }
+  } catch (err) {
+    // Ignore errors
+  }
   res.clearCookie("refreshToken");
   res.json({ message: "Logged out" });
+};
+
+const crypto = require("crypto");
+const { Resend } = require("resend");
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return errorResponse(res, 400, "Email is required");
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: normalizedEmail });
+    
+    if (!user) {
+      return res.status(200).json({ message: "If an account exists, a reset email will be sent" });
+    }
+
+    const resetToken = crypto.randomBytes(20).toString("hex");
+    user.resetPasswordToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+    user.resetPasswordExpires = Date.now() + 10 * 60 * 1000;
+    await user.save();
+
+    const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:5173"}/reset-password?token=${resetToken}`;
+
+    const message = `
+      <h2>Password Reset Request</h2>
+      <p>You requested a password reset. Click the link below to set a new password:</p>
+      <a href="${resetUrl}">${resetUrl}</a>
+      <p>This link is valid for 10 minutes.</p>
+    `;
+
+    try {
+      await resend.emails.send({
+        from: "PocketDesk <onboarding@resend.dev>",
+        to: user.email,
+        subject: "Password Reset Token",
+        html: message,
+      });
+    } catch (emailErr) {
+      console.error("Email send error:", emailErr);
+      return errorResponse(res, 500, "Failed to send email");
+    }
+
+    res.status(200).json({ message: "If an account exists, a reset email will be sent" });
+  } catch (err) {
+    console.error("Forgot password error:", err);
+    errorResponse(res, 500, "Failed to process request");
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const resetPasswordToken = crypto.createHash("sha256").update(req.params.resetToken).digest("hex");
+
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return errorResponse(res, 400, "Invalid or expired token");
+    }
+
+    const { password } = req.body;
+    
+    if (!password) {
+      return errorResponse(res, 400, "Please provide a new password");
+    }
+
+    if (!isStrongPassword(password)) {
+      return errorResponse(res, 400, "Password must be at least 8 characters with uppercase, lowercase, and number");
+    }
+
+    const isSamePassword = await bcrypt.compare(password, user.password);
+    if (isSamePassword) {
+      return errorResponse(res, 400, "New password cannot be the same as current password");
+    }
+
+    user.password = await bcrypt.hash(password, 12);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    user.refreshTokenVersion += 1;
+    await user.save();
+
+    const accessToken = generateAccessToken(user._id, user.role, user.email);
+    const refreshToken = generateRefreshToken(user._id, user.refreshTokenVersion);
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    res.status(200).json({ accessToken, email: user.email, role: user.role, message: "Password reset successful" });
+  } catch (err) {
+    console.error("Reset password error:", err);
+    errorResponse(res, 500, "Failed to reset password");
+  }
 };
 
 module.exports = {
@@ -210,6 +340,8 @@ module.exports = {
 signup,
 login,
 refresh,
-logout
+logout,
+forgotPassword,
+resetPassword
 
 };

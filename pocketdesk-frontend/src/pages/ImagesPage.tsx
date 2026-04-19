@@ -23,12 +23,13 @@ export default function ImagesPage() {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [newAlbum, setNewAlbum] = useState("");
   const [creating, setCreating] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
 
   const loadAlbums = async () => {
     try {
       const res = await API.get("/albums/list");
       setAlbums(res.data);
-    } catch (err) {
+    } catch {
       console.log("Failed loading albums");
     }
   };
@@ -42,19 +43,19 @@ export default function ImagesPage() {
       await API.post("/albums/create", { name: newAlbum });
       setNewAlbum("");
       loadAlbums();
-    } catch (err) {
+    } catch {
       console.log("Create album failed");
     } finally {
       setCreating(false);
     }
   };
 
-  const deleteAlbum = async (id: string, name: string) => {
-    if (!window.confirm(`Delete album "${name}"?`)) return;
+  const deleteAlbum = async (id: string, _name: string) => {
+
     try {
       await API.delete(`/albums/${id}`);
       loadAlbums();
-    } catch (err) {
+    } catch {
       console.log("Delete failed");
     }
   };
@@ -132,14 +133,43 @@ export default function ImagesPage() {
                 <p className="text-xs text-neutral-500 mt-0.5">Click to view images</p>
 
                 {/* Delete btn — top-right on hover */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); deleteAlbum(album._id, album.name); }}
-                  className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-neutral-600 hover:text-red-400 transition-all p-1 rounded"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                  </svg>
-                </button>
+                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all">
+                  {confirmingDelete === album._id ? (
+                    <div className="flex items-center gap-1 bg-neutral-900 border border-neutral-700 p-1 rounded-lg animate-in fade-in slide-in-from-right-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteAlbum(album._id, album.name);
+                          setConfirmingDelete(null);
+                        }}
+                        className="px-2 py-1 text-[10px] bg-red-600 hover:bg-red-700 text-white rounded transition-colors font-semibold"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmingDelete(null);
+                        }}
+                        className="p-1 hover:bg-neutral-800 text-neutral-400 rounded transition"
+                      >
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setConfirmingDelete(album._id); }}
+                      className="text-neutral-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-neutral-800 transition-all"
+                      title="Delete Album"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}

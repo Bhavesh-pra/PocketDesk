@@ -3,26 +3,21 @@ const { semanticSearch } = require("../services/searchService");
 const { rerankChunks } = require("../services/rerankService");
 const Conversation = require("../models/conversation");
 
-// =============================
-// ASK QUESTION
-// =============================
+const errorResponse = (res, status, message) => {
+  return res.status(status).json({ error: message });
+};
+
 const askQuestion = async (req, res) => {
   try {
     const { question, sessionId } = req.body;
 
     if (!question) {
-      return res.status(400).json({ message: "Question required" });
+      return errorResponse(res, 400, "Question required");
     }
 
-    // =============================
-    // 1. SEARCH + RERANK
-    // =============================
     const candidates = await semanticSearch(question, req.userId, 20);
     const topChunks = await rerankChunks(question, candidates);
 
-    // =============================
-    // 2. DOCUMENT CONTEXT
-    // =============================
     let documentContext = "";
 
     if (topChunks.length > 0) {
@@ -44,9 +39,6 @@ Use general knowledge if needed.
 `;
     }
 
-    // =============================
-    // 3. LOAD CONVERSATION (ONLY ONCE)
-    // =============================
     let conversation = null;
     let historyText = "";
     let pdfContext = "";
@@ -58,13 +50,11 @@ Use general knowledge if needed.
       });
 
       if (conversation) {
-        // Chat history
         historyText = conversation.messages
           .slice(-6)
           .map(m => `${m.role}: ${m.content}`)
           .join("\n");
 
-        // PDF context (safe check)
         if (conversation.lastPdfChunks && conversation.lastPdfChunks.length > 0) {
           pdfContext = conversation.lastPdfChunks
             .slice(0, 5)
@@ -74,9 +64,6 @@ Use general knowledge if needed.
       }
     }
 
-    // =============================
-    // 4. FINAL CONTEXT
-    // =============================
     const finalContext = `
 Use the following information to answer the user's question.
 
@@ -90,22 +77,13 @@ Relevant Document Context:
 ${documentContext}
 `;
 
-    // =============================
-    // 5. AI CALL
-    // =============================
     const isStream = req.query.stream !== "false";
     const aiResponse = await askAI(finalContext, question, isStream);
 
-    // =============================
-    // 6. NON-STREAM MODE
-    // =============================
     if (!isStream) {
       return res.json({ answer: aiResponse });
     }
 
-    // =============================
-    // 7. STREAM MODE
-    // =============================
     res.setHeader("Content-Type", "text/plain");
     res.setHeader("Transfer-Encoding", "chunked");
 
@@ -125,20 +103,14 @@ ${documentContext}
       }
     }
 
-    // Fallback if empty
     if (!fullAnswer || fullAnswer.trim().length < 5) {
-      const fallback =
-        "Sorry, I couldn't generate a proper answer. Please try rephrasing.";
-
+      const fallback = "Sorry, I couldn't generate a proper answer. Please try rephrasing.";
       fullAnswer = fallback;
       res.write(fallback);
     }
 
     res.end();
 
-    // =============================
-    // 8. SAVE CONVERSATION
-    // =============================
     if (sessionId) {
       if (!conversation) {
         conversation = new Conversation({
@@ -154,22 +126,15 @@ ${documentContext}
       );
 
       conversation.updatedAt = new Date();
-
       await conversation.save();
     }
 
   } catch (err) {
     console.error("ASK QUESTION ERROR:", err);
-
-    res.status(500).json({
-      message: "AI Error"
-    });
+    errorResponse(res, 500, "AI Error");
   }
 };
 
-// =============================
-// GET CONVERSATION HISTORY
-// =============================
 const getConversationHistory = async (req, res) => {
   try {
     const conversation = await Conversation.findOne({
@@ -184,16 +149,11 @@ const getConversationHistory = async (req, res) => {
     res.json(conversation.messages);
 
   } catch (err) {
-    console.log(err);
-    res.status(500).json({
-      message: "History fetch error"
-    });
+    console.error("History fetch error:", err);
+    errorResponse(res, 500, "History fetch error");
   }
 };
 
-// =============================
-// DELETE CHAT
-// =============================
 const deleteChat = async (req, res) => {
   try {
     await Conversation.deleteOne({
@@ -204,15 +164,11 @@ const deleteChat = async (req, res) => {
     res.json({ message: "Chat deleted" });
 
   } catch (err) {
-    res.status(500).json({
-      message: "Delete failed"
-    });
+    console.error("Delete chat error:", err);
+    errorResponse(res, 500, "Delete failed");
   }
 };
 
-// =============================
-// GET CHAT LIST
-// =============================
 const getChatList = async (req, res) => {
   try {
     const conversations = await Conversation.find({
@@ -229,15 +185,11 @@ const getChatList = async (req, res) => {
     res.json(formatted);
 
   } catch (err) {
-    res.status(500).json({
-      message: "Chat list error"
-    });
+    console.error("Chat list error:", err);
+    errorResponse(res, 500, "Chat list error");
   }
 };
 
-// =============================
-// EXPORTS
-// =============================
 module.exports = {
   askQuestion,
   getConversationHistory,

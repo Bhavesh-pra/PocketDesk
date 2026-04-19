@@ -2,7 +2,7 @@ export const getSessionId = (): string => {
   let sessionId = localStorage.getItem("sessionId");
 
   if (!sessionId) {
-    sessionId = Math.random().toString(36).substring(2);
+    sessionId = crypto.randomUUID();
     localStorage.setItem("sessionId", sessionId);
   }
 

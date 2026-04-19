@@ -101,7 +101,10 @@ const deleteVideo = async (req, res) => {
       fs.unlinkSync(video.filePath);
     }
 
-    await Video.deleteOne({ _id: req.params.id });
+    await Video.deleteOne({ 
+      _id: req.params.id,
+      userId: req.userId 
+    });
 
     res.json({ message: "Video deleted" });
   } catch (err) {

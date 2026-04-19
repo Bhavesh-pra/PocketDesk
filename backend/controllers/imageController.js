@@ -36,7 +36,8 @@ fs.unlinkSync(image.filePath);
 
 // delete from database
 await Image.deleteOne({
-_id:req.params.id
+_id: req.params.id,
+userId: req.userId
 });
 
 await loadChunks();
@@ -59,8 +60,7 @@ message:"Delete failed"
 
 const uploadImage = async (req,res)=>{
 
-    console.log("FILE:", req.file);
-console.log("BODY:", req.body);
+
 
 
 try{
@@ -69,20 +69,16 @@ const text = await extractTextFromImage(req.file.path);
 
 const textChunks = splitIntoChunks(text);
 
-let chunks = [];
+    const embeddings = await Promise.all(
+      textChunks.map(chunkText => getEmbedding(chunkText))
+    );
 
-for(let chunkText of textChunks){
-
-const embedding = await getEmbedding(chunkText);
-
-chunks.push({
-  text: chunkText,
-  embedding: embedding,
-  sourceType: "image",
-  sourceName: req.file.originalname
-});
-
-}
+    const chunks = textChunks.map((chunkText, i) => ({
+      text: chunkText,
+      embedding: embeddings[i],
+      sourceType: "image",
+      sourceName: req.file.originalname
+    }));
 
 const image = new Image({
 

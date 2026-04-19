@@ -1,6 +1,12 @@
 const multer = require("multer");
 const pdfParse = require("pdf-parse");
 const fs = require("fs");
+const path = require("path");
+
+const ALLOWED_MIME_TYPES = [
+  "application/pdf",
+  "application/x-pdf"
+];
 
 const storage = multer.diskStorage({
     destination: function(req, file, cb) {
@@ -8,19 +14,23 @@ const storage = multer.diskStorage({
     },
 
     filename: function(req, file, cb) {
-        const uniqueName = Date.now() + "-" + file.originalname;
+        const uniqueName = Date.now() + "-" + file.originalname.replace(/[^a-zA-Z0-9.-]/g, "_");
         cb(null, uniqueName);
     }
 });
 
 const upload = multer({
-
     storage: storage,
-
     limits: {
-        fileSize: 100 * 1024 * 1024   // 100 MB
+        fileSize: 50 * 1024 * 1024
+    },
+    fileFilter: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (ext !== ".pdf" || !ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+            return cb(new Error("Only PDF files are allowed"), false);
+        }
+        cb(null, true);
     }
-
 });
 
 

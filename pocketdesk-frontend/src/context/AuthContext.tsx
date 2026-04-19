@@ -1,7 +1,7 @@
 import { createContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import API from "../services/api";
-import { setAccessToken } from "../services/api";
+import { clearAccessToken } from "../services/api";
 
 interface AuthContextType {
   token: string | null;
@@ -24,19 +24,18 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     setToken(jwt);
     setEmail(userEmail);
     setRole(userRole);
-    setAccessToken(jwt);
   };
 
   const logout = async () => {
     try {
       await API.post("/auth/logout");
     } catch {
-      // Ignore error
+      // Ignore error on logout
     }
     setToken(null);
     setEmail(null);
     setRole(null);
-    setAccessToken("");
+    clearAccessToken();
   };
 
   useEffect(() => {
@@ -46,12 +45,11 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
         setToken(res.data.accessToken);
         setEmail(res.data.email || null);
         setRole(res.data.role || null);
-        setAccessToken(res.data.accessToken);
       } catch {
         setToken(null);
         setEmail(null);
         setRole(null);
-        setAccessToken("");
+        clearAccessToken();
       } finally {
         setLoading(false);
       }

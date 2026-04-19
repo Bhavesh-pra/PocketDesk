@@ -1,15 +1,17 @@
 const Todo = require("../models/todo");
 const reminderQueue = require("../queues/reminderQueue");
 
-// CREATE TODO
+const errorResponse = (res, status, message) => {
+  return res.status(status).json({ error: message });
+};
+
 const createTodo = async (req, res) => {
   try {
-    const { text, scheduledTime, priority } = req.body;
+    const { scheduledTime, priority } = req.body;
+    const text = req.body.title || req.body.text;
 
     if (!text || !scheduledTime) {
-      return res.status(400).json({
-        message: "Text and scheduledTime required"
-      });
+      return errorResponse(res, 400, "Text and scheduled time are required");
     }
 
     const todo = await Todo.create({
@@ -19,9 +21,7 @@ const createTodo = async (req, res) => {
       priority: priority || "medium"
     });
 
-    // ⏰ Schedule job
-    const delay =
-      new Date(scheduledTime).getTime() - Date.now() - (60 * 60 * 1000);
+    const delay = new Date(scheduledTime).getTime() - Date.now() - (60 * 60 * 1000);
 
     if (delay > 0) {
       await reminderQueue.add(
@@ -31,63 +31,65 @@ const createTodo = async (req, res) => {
       );
     }
 
-    res.json(todo);
+    res.status(201).json(todo);
 
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ message: "Create failed" });
+    console.error("Create todo error:", err);
+    errorResponse(res, 500, "Failed to create todo");
   }
 };
 
-// GET TODOS
 const getTodos = async (req, res) => {
-  const todos = await Todo.find({
-    userId: req.userId
-  }).sort({ scheduledTime: 1 });
+  try {
+    const todos = await Todo.find({
+      userId: req.userId
+    }).sort({ scheduledTime: 1 });
 
-  res.json(todos);
+    res.json(todos);
+  } catch (err) {
+    console.error("Get todos error:", err);
+    errorResponse(res, 500, "Failed to fetch todos");
+  }
 };
 
-// TOGGLE COMPLETE
 const toggleTodo = async (req, res) => {
   try {
-    console.log("🔄 Toggle request:", req.params.id);
-
     const todo = await Todo.findOne({
       _id: req.params.id,
       userId: req.userId
     });
 
     if (!todo) {
-      console.log("❌ Todo not found");
-      return res.status(404).json({
-        message: "Not found"
-      });
+      return errorResponse(res, 404, "Todo not found");
     }
-
-    console.log("Before:", todo.completed);
 
     todo.completed = !todo.completed;
     await todo.save();
 
-    console.log("After:", todo.completed);
-
     res.json(todo);
 
   } catch (err) {
-    console.log("Toggle error:", err);
-    res.status(500).json({ message: "Toggle failed" });
+    console.error("Toggle todo error:", err);
+    errorResponse(res, 500, "Toggle failed");
   }
 };
 
-// DELETE
 const deleteTodo = async (req, res) => {
-  await Todo.deleteOne({
-    _id: req.params.id,
-    userId: req.userId
-  });
+  try {
+    const result = await Todo.deleteOne({
+      _id: req.params.id,
+      userId: req.userId
+    });
 
-  res.json({ message: "Deleted" });
+    if (result.deletedCount === 0) {
+      return errorResponse(res, 404, "Todo not found");
+    }
+
+    res.json({ message: "Todo deleted" });
+  } catch (err) {
+    console.error("Delete todo error:", err);
+    errorResponse(res, 500, "Delete failed");
+  }
 };
 
 module.exports = {

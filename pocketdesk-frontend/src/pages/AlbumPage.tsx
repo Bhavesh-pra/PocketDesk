@@ -15,6 +15,7 @@ const { albumId } = useParams();
 
 const [images,setImages] = useState<Image[]>([]);
 const [file,setFile] = useState<File | null>(null);
+const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
 
 const navigate = useNavigate();
 
@@ -60,23 +61,14 @@ console.log("Upload failed");
 };
 
 
-const deleteImage = async (id:string,name:string)=>{
 
-const confirmDelete =
-window.confirm(`Delete image "${name}" ?`);
-
-if(!confirmDelete) return;
-
-try{
-
-await API.delete(`/images/${id}`);
-
-loadImages();
-
-}catch(err){
-console.log("Delete failed");
-}
-
+const deleteImage = async (id: string, _name: string) => {
+  try {
+    await API.delete(`/images/${id}`);
+    loadImages();
+  } catch (err) {
+    console.log("Delete failed");
+  }
 };
 
 
@@ -127,7 +119,7 @@ className="border border-neutral-700 p-2"
 >
 
 <img
-src={`http://localhost:5000/${img.filePath}`}
+src={`${API.defaults.baseURL?.replace("/api", "")}/${img.filePath}`}
 className="w-full"
 />
 
@@ -135,12 +127,36 @@ className="w-full"
 {img.fileName}
 </div>
 
-<button
-onClick={()=>deleteImage(img._id,img.fileName)}
-className="text-xs text-red-400"
->
-Delete
-</button>
+<div className="flex items-center gap-1.5 mt-2">
+  {confirmingDelete === img._id ? (
+    <div className="flex items-center gap-1 animate-in fade-in slide-in-from-right-1">
+      <button
+        onClick={() => {
+          deleteImage(img._id, img.fileName);
+          setConfirmingDelete(null);
+        }}
+        className="px-2 py-1 text-[10px] bg-red-600 hover:bg-red-700 text-white rounded transition-colors font-semibold"
+      >
+        Confirm
+      </button>
+      <button
+        onClick={() => setConfirmingDelete(null)}
+        className="p-1 hover:bg-neutral-800 text-neutral-400 rounded transition"
+      >
+        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  ) : (
+    <button
+      onClick={() => setConfirmingDelete(img._id)}
+      className="text-xs text-red-500 hover:text-red-400 transition-colors p-1"
+    >
+      Delete
+    </button>
+  )}
+</div>
 
 </div>
 

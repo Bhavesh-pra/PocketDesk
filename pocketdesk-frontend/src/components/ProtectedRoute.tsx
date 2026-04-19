@@ -8,11 +8,15 @@ export default function ProtectedRoute() {
   if (!context) return null;
 
   if (context.loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-neutral-950">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
   }
 
   if (!context.token) {
-    return <Navigate to="/" />;
+    return <Navigate to="/login" replace />;
   }
 
   return <Outlet />;

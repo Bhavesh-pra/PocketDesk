@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const authMiddleware = require("../middleware/authMiddleware");
+const { validateTodo, validateObjectId } = require("../middleware/validationMiddleware");
 
 const {
   createTodo,
@@ -10,9 +11,9 @@ const {
   deleteTodo
 } = require("../controllers/todoController");
 
-router.post("/create", authMiddleware, createTodo);
+router.post("/create", authMiddleware, validateTodo, createTodo);
 router.get("/list", authMiddleware, getTodos);
-router.patch("/:id/toggle", authMiddleware, toggleTodo);
-router.delete("/:id", authMiddleware, deleteTodo);
+router.patch("/:id/toggle", authMiddleware, validateObjectId("id"), toggleTodo);
+router.delete("/:id", authMiddleware, validateObjectId("id"), deleteTodo);
 
 module.exports = router;

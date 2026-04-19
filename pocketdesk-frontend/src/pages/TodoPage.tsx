@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Trash2 } from "lucide-react";
 import API from "../services/api";
 
 interface Todo {
@@ -19,6 +19,7 @@ export default function TodoPage() {
   const [timeInput, setTimeInput] = useState("");
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [now, setNow] = useState(new Date());
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
 
   // Live clock (for countdown)
   useEffect(() => {
@@ -46,7 +47,9 @@ export default function TodoPage() {
   };
 
   useEffect(() => {
-    loadTodos();
+    (async () => {
+      await loadTodos();
+    })();
   }, []);
 
   // Create todo
@@ -99,8 +102,12 @@ export default function TodoPage() {
 
   // Delete
   const deleteTodo = async (id: string) => {
-    await API.delete(`/todo/${id}`);
-    loadTodos();
+    try {
+      await API.delete(`/todo/${id}`);
+      loadTodos();
+    } catch {
+      console.error("Delete todo failed");
+    }
   };
 
   // Grouping (FIXED)
@@ -210,7 +217,7 @@ export default function TodoPage() {
             title="🔥 Overdue"
             color="text-red-400"
             todos={overdue}
-            {...{ toggleTodo, deleteTodo, now }}
+            {...{ toggleTodo, deleteTodo, now, confirmingDelete, setConfirmingDelete }}
           />
         )}
 
@@ -219,7 +226,7 @@ export default function TodoPage() {
             title="📅 Today"
             color="text-blue-400"
             todos={today}
-            {...{ toggleTodo, deleteTodo, now }}
+            {...{ toggleTodo, deleteTodo, now, confirmingDelete, setConfirmingDelete }}
           />
         )}
 
@@ -228,7 +235,7 @@ export default function TodoPage() {
             title="⏳ Upcoming"
             color="text-neutral-300"
             todos={upcoming}
-            {...{ toggleTodo, deleteTodo, now }}
+            {...{ toggleTodo, deleteTodo, now, confirmingDelete, setConfirmingDelete }}
           />
         )}
 
@@ -237,7 +244,7 @@ export default function TodoPage() {
             title="✅ Completed"
             color="text-green-400"
             todos={todos.filter((t) => t.completed)}
-            {...{ toggleTodo, deleteTodo, now }}
+            {...{ toggleTodo, deleteTodo, now, confirmingDelete, setConfirmingDelete }}
           />
         )}
 
@@ -254,6 +261,8 @@ function Section({
   toggleTodo,
   deleteTodo,
   now,
+  confirmingDelete,
+  setConfirmingDelete,
 }: {
   title: string;
   color: string;
@@ -261,6 +270,8 @@ function Section({
   toggleTodo: (id: string) => void;
   deleteTodo: (id: string) => void;
   now: Date;
+  confirmingDelete: string | null;
+  setConfirmingDelete: (id: string | null) => void;
 }) {
   const sorted = [...todos].sort(
     (a, b) =>
@@ -275,7 +286,7 @@ function Section({
       {sorted.map((todo) => (
         <TodoItem
           key={todo._id}
-          {...{ todo, toggleTodo, deleteTodo, now }}
+          {...{ todo, toggleTodo, deleteTodo, now, confirmingDelete, setConfirmingDelete }}
         />
       ))}
     </div>
@@ -288,16 +299,20 @@ function TodoItem({
   toggleTodo,
   deleteTodo,
   now,
+  confirmingDelete,
+  setConfirmingDelete,
 }: {
   todo: Todo;
   toggleTodo: (id: string) => void;
   deleteTodo: (id: string) => void;
   now: Date;
+  confirmingDelete: string | null;
+  setConfirmingDelete: (id: string | null) => void;
 }) {
   const taskDate = new Date(todo.scheduledTime);
   const diff = taskDate.getTime() - now.getTime();
 
-  let timeText =
+  const timeText =
     diff <= 0
       ? "Overdue"
       : diff < 3600000
@@ -361,16 +376,37 @@ function TodoItem({
         </div>
       </div>
 
-      <button
-        onClick={() => {
-          if (window.confirm("Delete this task?")) {
-            deleteTodo(todo._id);
-          }
-        }}
-        className="text-red-400 text-xs hover:text-red-600"
-      >
-        Delete
-      </button>
+      <div className="flex items-center gap-2">
+        {confirmingDelete === todo._id ? (
+          <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-right-1 duration-200">
+            <button
+              onClick={() => {
+                deleteTodo(todo._id);
+                setConfirmingDelete(null);
+              }}
+              className="px-2 py-1 text-[10px] bg-red-600 hover:bg-red-700 text-white rounded transition-colors font-semibold"
+            >
+              Confirm
+            </button>
+            <button
+              onClick={() => setConfirmingDelete(null)}
+              className="p-1 hover:bg-neutral-800 text-neutral-400 rounded transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmingDelete(todo._id)}
+            className="text-neutral-500 hover:text-red-500 p-2 rounded-lg hover:bg-neutral-800 transition-colors flex items-center justify-center group/del"
+            title="Delete Task"
+          >
+            <Trash2 size={14} className="group-hover/del:scale-110 transition-transform" />
+          </button>
+        )}
+      </div>
     </div>
   );
 }

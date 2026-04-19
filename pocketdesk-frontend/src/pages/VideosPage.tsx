@@ -96,8 +96,8 @@ function YouTubeTab() {
           params: { videoUrl: activeUrl }
         });
         setNoteContent(res.data.content || "");
-      } catch (err) {
-        console.error("Failed to load note");
+      } catch {
+        setSaveStatus("error");
         setNoteContent("");
       }
     };
@@ -108,7 +108,8 @@ function YouTubeTab() {
   const handleLoad = () => {
     const id = extractYouTubeId(urlInput.trim());
     if (!id) {
-      alert("Invalid YouTube URL. Try: https://youtube.com/watch?v=...");
+      setSaveStatus("error"); // Or another state-based warning
+      console.error("Invalid YouTube URL");
       return;
     }
     setVideoId(id);
@@ -222,12 +223,13 @@ function UploadedTab() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState("");
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
 
   const loadVideos = async () => {
     try {
       const res = await API.get("/video/list");
       setVideos(res.data);
-    } catch (err) {
+    } catch {
       console.error("Failed to load videos");
     }
   };
@@ -261,20 +263,20 @@ function UploadedTab() {
       await loadVideos();
       setProgress("Done! Transcript extracted and added to your knowledge base.");
       setTimeout(() => setProgress(""), 4000);
-    } catch (err: any) {
-      setProgress(err.response?.data?.message || "Upload failed");
+    } catch (err) {
+      setProgress((err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Upload failed");
     } finally {
       setUploading(false);
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Delete "${name}"?`)) return;
+  const handleDelete = async (id: string, _name: string) => {
+
     try {
       await API.delete(`/video/${id}`);
       setVideos((prev) => prev.filter((v) => v._id !== id));
     } catch {
-      alert("Delete failed");
+      setProgress("Delete failed");
     }
   };
 
@@ -346,12 +348,37 @@ function UploadedTab() {
                   {new Date(v.createdAt).toLocaleDateString()}
                 </p>
               </div>
-              <button
-                onClick={() => handleDelete(v._id, v.fileName)}
-                className="text-red-400 text-xs hover:text-red-600 transition"
-              >
-                Delete
-              </button>
+              <div className="flex items-center gap-2">
+                {confirmingDelete === v._id ? (
+                  <div className="flex items-center gap-1.5 animate-in fade-in slide-in-from-right-1 duration-200">
+                    <button
+                      onClick={() => {
+                        handleDelete(v._id, v.fileName);
+                        setConfirmingDelete(null);
+                      }}
+                      className="px-2 py-1 text-[10px] bg-red-600 hover:bg-red-700 text-white rounded transition-colors font-semibold"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      onClick={() => setConfirmingDelete(null)}
+                      className="p-1 hover:bg-neutral-800 text-neutral-400 rounded transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmingDelete(v._id)}
+                    className="text-red-400 text-xs hover:text-red-600 transition p-2 rounded-lg hover:bg-neutral-800"
+                    title="Delete Video"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>

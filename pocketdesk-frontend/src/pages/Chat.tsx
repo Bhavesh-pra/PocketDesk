@@ -3,15 +3,17 @@ import { useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { RefreshCw } from "lucide-react";
-import { getAccessToken } from "../services/api";
 import { AuthContext } from "../context/AuthContext";
 import API from "../services/api";
-import type { ChatResponse } from "../types/api";
 
 interface Message {
   role: "User" | "AI";
   content: string;
   image?: string;
+}
+
+interface ChatResponse {
+  answer: string;
 }
 
 export default function Chat() {
@@ -25,7 +27,8 @@ export default function Chat() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [noteFile, setNoteFile] = useState<File | null>(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
-  const [uploadedPdf, setUploadedPdf] = useState<string | null>(null);
+
+  const [error, setError] = useState<string | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -40,7 +43,7 @@ export default function Chat() {
       try {
         const res = await API.get(`/chat/history/${sessionId}`);
         setMessages(res.data);
-      } catch (err) {
+      } catch {
         console.log("History load failed");
       }
     };
@@ -70,6 +73,7 @@ export default function Chat() {
     try {
       setLoading(true);
       const res = await API.post<ChatResponse>("/chat/ask?stream=false", {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         question: lastQuestion,
         sessionId,
       });
@@ -105,17 +109,21 @@ export default function Chat() {
 
   const handlePdfUpload = async (file: File) => {
     if (!file) return;
-    const formData = new FormData();
-    formData.append("pdf", file);
-    formData.append("sessionId", sessionId || "");
-    await API.post("/chat/pdf", formData, { headers: { "Content-Type": "multipart/form-data" } });
-    setUploadedPdf(file.name);
+    try {
+      const formData = new FormData();
+      formData.append("pdf", file);
+      formData.append("sessionId", sessionId || "");
+      await API.post("/chat/pdf", formData, { headers: { "Content-Type": "multipart/form-data" } });
+    } catch {
+      console.log("PDF upload failed");
+    }
   };
 
   const handleAsk = async () => {
     if (!question.trim()) return;
     try {
       setLoading(true);
+      setError(null);
       setLastQuestion(question);
 
       const userMsg: Message = {
@@ -140,25 +148,28 @@ export default function Chat() {
         return;
       }
 
-      // STREAMING CHAT
+      // STREAMING CHAT — uses native fetch() because Axios cannot stream in browser
       controllerRef.current = new AbortController();
-      const token = getAccessToken();
-      const BASE_URL = import.meta.env.VITE_API_URL;
 
-      const response = await fetch(`${BASE_URL}/api/chat/ask`, {
+      const baseURL = (import.meta.env.VITE_API_URL || "http://localhost:5000") + "/api";
+      const token = (await import("../services/api")).getAccessToken();
+
+      const response = await fetch(`${baseURL}/chat/ask`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        credentials: "include",
         body: JSON.stringify({ question, sessionId }),
         signal: controllerRef.current.signal,
       });
 
-      if (!response.body) throw new Error("No response body");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw { response: { data: errData } };
+      }
 
-      const reader = response.body.getReader();
+      const reader = response.body!.getReader();
       const decoder = new TextDecoder();
       let aiText = "";
       let buffer = "";
@@ -185,9 +196,11 @@ export default function Chat() {
       clearInterval(interval);
       updateUI();
 
-    } catch (error: any) {
-      if (error.name === "AbortError") return;
-      console.log("Chat error:", error);
+    } catch (error) {
+      console.error("Chat failure:", error);
+      const err = error as { response?: { data?: { message?: string; error?: string } }; message?: string };
+      setError(err.response?.data?.error || err.response?.data?.message || err.message || "Message failed. Please try again.");
+      setMessages((prev) => prev.slice(0, -1));
     } finally {
       setLoading(false);
     }
@@ -275,7 +288,12 @@ export default function Chat() {
           </div>
         )}
 
-        <div ref={bottomRef} />
+          {error && (
+            <div className="mx-1 my-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+              {error}
+            </div>
+          )}
+          <div ref={bottomRef} />
       </div>
 
       {/* Attachment previews */}

@@ -20,6 +20,7 @@ cb(null, uniqueName);
 
 const uploadImage = multer({
 storage,
+limits: { fileSize: 50 * 1024 * 1024 },
 fileFilter: (req,file,cb)=>{
 
 if(file.mimetype.startsWith("image/")){

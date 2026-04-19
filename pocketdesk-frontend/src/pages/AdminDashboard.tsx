@@ -11,14 +11,10 @@ import {
   LogOut, 
   Home, 
   CheckCircle2, 
-  XCircle,
-  FileText,
-  Image as ImageIcon,
-  Video as VideoIcon,
-  MessageSquare
+  XCircle
 } from "lucide-react";
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell 
 } from "recharts";
 
 interface MetricStats {
