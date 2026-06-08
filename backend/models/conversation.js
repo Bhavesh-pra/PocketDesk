@@ -20,6 +20,15 @@ content: String
 }
 ],
 
+lastPdfChunks: [
+{
+text: String,
+embedding: [Number],
+sourceType: String,
+sourceName: String
+}
+],
+
 createdAt: {
 type: Date,
 default: Date.now

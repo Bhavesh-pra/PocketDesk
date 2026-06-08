@@ -27,6 +27,7 @@ export default function Chat() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [noteFile, setNoteFile] = useState<File | null>(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
@@ -98,24 +99,32 @@ export default function Chat() {
 
   const handleNoteUpload = async (file: File) => {
     try {
+      setUploadStatus("Uploading note…");
       const formData = new FormData();
       formData.append("note", file);
       formData.append("sessionId", sessionId || "");
       await API.post("/notes/upload", formData, { headers: { "Content-Type": "multipart/form-data" } });
+      setUploadStatus("✓ Note added to chat context");
+      setTimeout(() => setUploadStatus(null), 3000);
     } catch {
-      console.log("Note upload failed");
+      setUploadStatus("✕ Note upload failed");
+      setTimeout(() => setUploadStatus(null), 3000);
     }
   };
 
   const handlePdfUpload = async (file: File) => {
     if (!file) return;
     try {
+      setUploadStatus("Processing PDF… this may take a moment");
       const formData = new FormData();
       formData.append("pdf", file);
       formData.append("sessionId", sessionId || "");
       await API.post("/chat/pdf", formData, { headers: { "Content-Type": "multipart/form-data" } });
+      setUploadStatus("✓ PDF added to chat knowledge");
+      setTimeout(() => setUploadStatus(null), 3000);
     } catch {
-      console.log("PDF upload failed");
+      setUploadStatus("✕ PDF upload failed");
+      setTimeout(() => setUploadStatus(null), 3000);
     }
   };
 
@@ -296,6 +305,22 @@ export default function Chat() {
           <div ref={bottomRef} />
       </div>
 
+      {/* Upload status banner */}
+      {uploadStatus && (
+        <div className={`mx-1 mb-2 px-4 py-2 rounded-xl text-sm flex items-center gap-2 transition-all ${
+          uploadStatus.startsWith("✓")
+            ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
+            : uploadStatus.startsWith("✕")
+              ? "bg-red-500/10 border border-red-500/20 text-red-400"
+              : "bg-blue-500/10 border border-blue-500/20 text-blue-400"
+        }`}>
+          {!uploadStatus.startsWith("✓") && !uploadStatus.startsWith("✕") && (
+            <div className="w-3.5 h-3.5 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin shrink-0" />
+          )}
+          {uploadStatus}
+        </div>
+      )}
+
       {/* Attachment previews */}
       {hasAttachment && (
         <div className="flex gap-2 mb-2 flex-wrap px-1">
@@ -343,8 +368,13 @@ export default function Chat() {
             </svg>
           </button>
 
+          {/* Outside-click overlay — must render BEFORE the menu so menu is on top */}
           {showAttachMenu && (
-            <div className="absolute bottom-12 left-0 bg-neutral-800 border border-neutral-700 rounded-xl shadow-xl w-44 overflow-hidden z-10">
+            <div className="fixed inset-0 z-40" onClick={() => setShowAttachMenu(false)} />
+          )}
+
+          {showAttachMenu && (
+            <div className="absolute bottom-12 left-0 bg-neutral-800 border border-neutral-700 rounded-xl shadow-xl w-44 overflow-hidden z-50">
               {[
                 { id: "imageInput", emoji: "🖼", label: "Upload Image" },
                 { id: "pdfInput", emoji: "📄", label: "Upload PDF" },
@@ -423,10 +453,7 @@ export default function Chat() {
           if (f) { setNoteFile(f); handleNoteUpload(f); }
         }} />
 
-      {/* Close attach menu on outside click */}
-      {showAttachMenu && (
-        <div className="fixed inset-0 z-0" onClick={() => setShowAttachMenu(false)} />
-      )}
+
     </div>
   );
 }

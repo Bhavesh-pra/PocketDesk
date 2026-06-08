@@ -5,7 +5,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const sendReminderEmail = async (to, taskText, time) => {
   try {
     await resend.emails.send({
-      from: "PocketDesk <onboarding@resend.dev>", // default works
+      from: "PocketDesk <reminders@pocketdesk.in>", // default works
       to: [to],
       subject: "⏰ Task Reminder",
       html: `

@@ -138,6 +138,9 @@ app.use("/api/notes", noteRoutes);
 const videoRoutes = require("./routes/videoRoutes");
 app.use("/api/video", videoRoutes);
 
+const searchRoutes = require("./routes/searchRoutes");
+app.use("/api/search", searchRoutes);
+
 app.get("/", (req, res) => {
   res.json({ 
     name: "PocketDesk API", 
@@ -175,7 +178,7 @@ process.on("SIGINT", () => {
   server.close(() => {
     console.log("Server closed");
     const mongoose = require("mongoose");
-    mongoose.connection.close();
+   - mongoose.connection.close();
     process.exit(0);
   });
 });
