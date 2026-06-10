@@ -178,7 +178,7 @@ process.on("SIGINT", () => {
   server.close(() => {
     console.log("Server closed");
     const mongoose = require("mongoose");
-   - mongoose.connection.close();
+    mongoose.connection.close();
     process.exit(0);
   });
 });
