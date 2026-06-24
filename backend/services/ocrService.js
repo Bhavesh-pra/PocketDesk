@@ -1,8 +1,13 @@
-const poppler = require("pdf-poppler");
+console.log("[STARTUP] ocrService.js loading");
 const { createWorker } = require("tesseract.js");
 const fs = require("fs");
 const path = require("path");
 
+let pdfPoppler = null;
+
+if (process.platform === "win32") {
+    pdfPoppler = require("pdf-poppler");
+}
 
 /*
 ---------------------------------------

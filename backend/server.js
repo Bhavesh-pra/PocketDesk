@@ -1,3 +1,4 @@
+console.log("[STARTUP] server.js loading");
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -15,7 +16,7 @@ require("./services/chunkCacheService");
 const authRoutes =
 require("./routes/authRoutes");
 
-require("./workers/reminderWorker");
+// require("./workers/reminderWorker"); // DISABLED: investigating Linux crash
 
 const app = express();
 
@@ -131,6 +132,9 @@ app.use("/api/auth", authRoutes);
 
 const contactRoutes = require("./routes/contactRoutes");
 app.use("/api/contact", contactRoutes);
+
+const subscriberRoutes = require("./routes/subscriberRoutes");
+app.use("/api/subscribe", subscriberRoutes);
 
 const noteRoutes = require("./routes/noteRoutes");
 app.use("/api/notes", noteRoutes);

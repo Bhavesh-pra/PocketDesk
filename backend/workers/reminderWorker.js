@@ -1,3 +1,4 @@
+console.log("[STARTUP] reminderWorker.js loading");
 const { Worker } = require("bullmq");
 const redis = require("../config/redis");
 
