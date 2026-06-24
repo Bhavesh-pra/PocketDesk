@@ -27,6 +27,7 @@ export default function Landing() {
           <Link to="/features" className="hover:text-white transition">Features</Link>
           <Link to="/about" className="hover:text-white transition">About</Link>
           <Link to="/contact" className="hover:text-white transition">Contact</Link>
+          <Link to="/coming-soon" className="hover:text-white transition">Coming Soon</Link>
         </div>
         <div className="flex items-center gap-4">
           <Link to="/login" className="text-sm font-medium text-neutral-400 hover:text-white transition px-2 py-1">Log In</Link>
@@ -123,8 +124,20 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 border-t border-neutral-800 px-6 md:px-12 text-center text-neutral-500 text-sm">
-        <p>&copy; {new Date().getFullYear()} PocketDesk. All rights reserved.</p>
+      <footer className="py-16 border-t border-neutral-900 bg-neutral-950 px-6 md:px-12">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-neutral-500 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-white text-base">Pocket<span className="text-blue-500">Desk</span></span>
+            <span className="text-xs text-neutral-600">| Intelligent Workspace</span>
+          </div>
+          <div className="flex flex-wrap justify-center gap-6 text-neutral-400">
+            <Link to="/features" className="hover:text-white transition">Features</Link>
+            <Link to="/about" className="hover:text-white transition">About</Link>
+            <Link to="/contact" className="hover:text-white transition">Contact</Link>
+            <Link to="/coming-soon" className="hover:text-white transition font-medium text-blue-400">Coming Soon</Link>
+          </div>
+          <p className="text-xs text-neutral-600">&copy; {new Date().getFullYear()} PocketDesk. All rights reserved.</p>
+        </div>
       </footer>
     </div>
   );
