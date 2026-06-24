@@ -16,7 +16,7 @@ require("./services/chunkCacheService");
 const authRoutes =
 require("./routes/authRoutes");
 
-// require("./workers/reminderWorker"); // DISABLED: investigating Linux crash
+require("./workers/reminderWorker");
 
 const app = express();
 

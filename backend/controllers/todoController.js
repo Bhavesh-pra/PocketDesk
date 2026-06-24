@@ -23,12 +23,14 @@ const createTodo = async (req, res) => {
 
     const delay = new Date(scheduledTime).getTime() - Date.now() - (60 * 60 * 1000);
 
-    if (delay > 0) {
+    if (delay > 0 && reminderQueue) {
       await reminderQueue.add(
         "send-reminder",
         { todoId: todo._id },
         { delay }
       );
+    } else if (delay > 0 && !reminderQueue) {
+      console.log("[REDIS] Reminder skipped — Redis unavailable. Todo saved without reminder:", todo._id);
     }
 
     res.status(201).json(todo);
