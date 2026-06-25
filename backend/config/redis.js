@@ -1,4 +1,4 @@
-const { Redis } = require("ioredis");
+const Redis = require("ioredis");
 
 // Redis is optional. It is only used for BullMQ queues (reminders, PDF processing).
 // On Railway, set REDIS_URL to enable queue features.

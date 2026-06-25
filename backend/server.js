@@ -19,18 +19,24 @@ require("./routes/authRoutes");
 require("./workers/reminderWorker");
 
 const app = express();
-
+//ORIGINAL CORS WAS HERE
+//
 app.use(cors({
   origin: function (origin, callback) {
     const allowedOrigins = [
-      "http://localhost:5173", 
-      "http://localhost:5174", 
+      "http://localhost:5173",
+      "http://localhost:5174",
       process.env.FRONTEND_URL
     ].filter(Boolean);
-    
+
+    console.log("[CORS] FRONTEND_URL =", process.env.FRONTEND_URL);
+    console.log("[CORS] Request Origin =", origin);
+    console.log("[CORS] Allowed Origins =", allowedOrigins);
+
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.log("[CORS] BLOCKED:", origin);
       callback(new Error("Not allowed by CORS"));
     }
   },
@@ -38,6 +44,7 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
+
 
 app.use(helmet({
   crossOriginResourcePolicy: false,
