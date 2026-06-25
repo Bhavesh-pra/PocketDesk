@@ -4,7 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { RefreshCw } from "lucide-react";
 import { AuthContext } from "../context/AuthContext";
-import API from "../services/api";
+import API, { API_BASE_URL } from "../services/api";
 
 interface Message {
   role: "User" | "AI";
@@ -160,10 +160,9 @@ export default function Chat() {
       // STREAMING CHAT — uses native fetch() because Axios cannot stream in browser
       controllerRef.current = new AbortController();
 
-      const baseURL = (import.meta.env.VITE_API_URL || "http://localhost:5000") + "/api";
       const token = (await import("../services/api")).getAccessToken();
 
-      const response = await fetch(`${baseURL}/chat/ask`, {
+      const response = await fetch(`${API_BASE_URL}/chat/ask`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
