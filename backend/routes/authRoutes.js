@@ -43,6 +43,12 @@ signup
 console.log("[AUTH] POST /login registered");
 router.post(
 "/login",
+(req, res, next) => {
+  console.log("[LOGIN] Route reached");
+  console.log("[LOGIN] Method =", req.method, "Path =", req.originalUrl);
+  console.log("[LOGIN] Body =", req.body);
+  next();
+},
 validateLogin,
 login
 );

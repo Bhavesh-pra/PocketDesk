@@ -38,6 +38,9 @@ const validateSignup = (req, res, next) => {
 };
 
 const validateLogin = (req, res, next) => {
+  console.log("[LOGIN] Validation middleware");
+  console.log("[LOGIN] Validation body =", req.body);
+
   const { email, password } = req.body;
   const errors = [];
 

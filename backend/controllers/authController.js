@@ -125,6 +125,8 @@ const login =
 async (req,res)=>{
 
 try{
+console.log("[LOGIN] Controller reached");
+console.log("[LOGIN] Controller body =", req.body);
 
 const { email, password } =
 req.body;
