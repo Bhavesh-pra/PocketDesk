@@ -29,11 +29,21 @@ validateSignup,
 signup
 );
 
+/*
 router.post(
 "/login",
 validateLogin,
 login
 );
+
+*/
+
+router.post("/login", (req, res) => {
+  res.json({
+    success: true,
+    body: req.body
+  });
+});
 
 
 module.exports =
