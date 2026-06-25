@@ -40,6 +40,22 @@ const errorResponse = (res, status, message) => {
   return res.status(status).json({ error: message });
 };
 
+const getRefreshCookieOptions = () => {
+  const isProduction = process.env.NODE_ENV === "production";
+
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  };
+};
+
+const getRefreshClearCookieOptions = () => {
+  const { maxAge, ...cookieOptions } = getRefreshCookieOptions();
+  return cookieOptions;
+};
+
 // SIGNUP
 const signup =
 async (req,res)=>{
@@ -85,10 +101,7 @@ const accessToken = generateAccessToken(user._id, user.role, user.email);
 const refreshToken = generateRefreshToken(user._id, user.refreshTokenVersion);
 
 res.cookie("refreshToken", refreshToken, {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "strict",
-  maxAge: 7 * 24 * 60 * 60 * 1000
+  ...getRefreshCookieOptions()
 });
 
 res.status(201).json({
@@ -153,10 +166,7 @@ const accessToken = generateAccessToken(user._id, user.role, user.email);
 const refreshToken = generateRefreshToken(user._id, user.refreshTokenVersion);
 
 res.cookie("refreshToken", refreshToken, {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "strict",
-  maxAge: 7 * 24 * 60 * 60 * 1000
+  ...getRefreshCookieOptions()
 });
 
 res.json({
@@ -204,10 +214,7 @@ const refresh = async (req, res) => {
     const newRefreshToken = generateRefreshToken(user._id, newVersion);
 
     res.cookie("refreshToken", newRefreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000
+      ...getRefreshCookieOptions()
     });
 
     res.json({ accessToken, email: user.email || "", role: user.role || "user" });
@@ -228,7 +235,7 @@ const logout = async (req, res) => {
   } catch (err) {
     // Ignore errors
   }
-  res.clearCookie("refreshToken");
+  res.clearCookie("refreshToken", getRefreshClearCookieOptions());
   res.json({ message: "Logged out" });
 };
 
@@ -322,10 +329,7 @@ const resetPassword = async (req, res) => {
     const refreshToken = generateRefreshToken(user._id, user.refreshTokenVersion);
 
     res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000
+      ...getRefreshCookieOptions()
     });
 
     res.status(200).json({ accessToken, email: user.email, role: user.role, message: "Password reset successful" });
