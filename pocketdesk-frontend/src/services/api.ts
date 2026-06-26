@@ -4,6 +4,22 @@ const rawApiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export const API_BASE_URL = `${rawApiUrl.replace(/\/+$/, "")}/api`;
 
+const getRequestUrl = (baseURL?: string, url?: string) => {
+  if (!url) {
+    return baseURL || "";
+  }
+
+  if (/^https?:\/\//i.test(url)) {
+    return url;
+  }
+
+  if (!baseURL) {
+    return url;
+  }
+
+  return new URL(url.replace(/^\//, ""), `${baseURL.replace(/\/+$/, "")}/`).toString();
+};
+
 const API = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true
@@ -22,6 +38,14 @@ export const clearAccessToken = () => {
 };
 
 API.interceptors.request.use((req) => {
+  const requestUrl = getRequestUrl(req.baseURL, req.url);
+
+  console.log("[API] Request", {
+    method: req.method?.toUpperCase() || "GET",
+    url: requestUrl,
+    hasAuth: Boolean(accessToken)
+  });
+
   if (accessToken) {
     req.headers.Authorization = `Bearer ${accessToken}`;
   }
@@ -29,9 +53,23 @@ API.interceptors.request.use((req) => {
 });
 
 API.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    console.log("[API] Response", {
+      method: res.config.method?.toUpperCase() || "GET",
+      url: getRequestUrl(res.config.baseURL, res.config.url),
+      status: res.status
+    });
+    return res;
+  },
   async (error) => {
     const originalRequest = error.config;
+
+    console.log("[API] Error", {
+      method: originalRequest?.method?.toUpperCase() || "GET",
+      url: getRequestUrl(originalRequest?.baseURL, originalRequest?.url),
+      status: error.response?.status || null,
+      data: error.response?.data || null
+    });
 
     if (
       error.response?.status === 401 &&

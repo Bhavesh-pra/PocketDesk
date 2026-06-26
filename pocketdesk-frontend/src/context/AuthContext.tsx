@@ -1,7 +1,7 @@
 import { createContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import API from "../services/api";
-import { clearAccessToken } from "../services/api";
+import { clearAccessToken, setAccessToken } from "../services/api";
 
 interface AuthContextType {
   token: string | null;
@@ -21,6 +21,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const login = (jwt: string, userEmail: string, userRole: string) => {
+    setAccessToken(jwt);
     setToken(jwt);
     setEmail(userEmail);
     setRole(userRole);
@@ -42,6 +43,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     const refreshUser = async () => {
       try {
         const res = await API.post("/auth/refresh");
+        setAccessToken(res.data.accessToken);
         setToken(res.data.accessToken);
         setEmail(res.data.email || null);
         setRole(res.data.role || null);
