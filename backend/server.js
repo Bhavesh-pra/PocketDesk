@@ -21,15 +21,31 @@ require("./workers/reminderWorker");
 const app = express();
 //ORIGINAL CORS WAS HERE
 //
+const getAllowedOrigins = () => {
+  const configuredOrigins = [
+    process.env.FRONTEND_URL,
+    process.env.CORS_ALLOWED_ORIGINS
+  ]
+    .filter(Boolean)
+    .flatMap((origins) => origins.split(","))
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  return [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://pocketdesk.in",
+    "https://www.pocketdesk.in",
+    ...configuredOrigins
+  ];
+};
+
 app.use(cors({
   origin: function (origin, callback) {
-    const allowedOrigins = [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      process.env.FRONTEND_URL
-    ].filter(Boolean);
+    const allowedOrigins = getAllowedOrigins();
 
     console.log("[CORS] FRONTEND_URL =", process.env.FRONTEND_URL);
+    console.log("[CORS] CORS_ALLOWED_ORIGINS =", process.env.CORS_ALLOWED_ORIGINS);
     console.log("[CORS] Request Origin =", origin);
     console.log("[CORS] Allowed Origins =", allowedOrigins);
 

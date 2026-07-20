@@ -1,6 +1,13 @@
 import axios from "axios";
 
-const rawApiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const defaultApiUrl = import.meta.env.DEV
+  ? "http://localhost:5000"
+  : "https://pocketdesk-56id.onrender.com";
+
+const configuredApiUrl = import.meta.env.VITE_API_URL;
+const rawApiUrl = configuredApiUrl?.includes("pocketdesk-production.up.railway.app")
+  ? defaultApiUrl
+  : configuredApiUrl || defaultApiUrl;
 
 export const API_BASE_URL = `${rawApiUrl.replace(/\/+$/, "")}/api`;
 
