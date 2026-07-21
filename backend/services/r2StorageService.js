@@ -15,10 +15,23 @@ const hasR2Config =
   R2_SECRET_ACCESS_KEY &&
   R2_BUCKET_NAME;
 
+const normalizeEndpoint = (value) => {
+  if (!value) return null;
+
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+};
+
+const computedEndpoint = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
+const endpoint = normalizeEndpoint(R2_ENDPOINT) || computedEndpoint;
+
 const s3Client = hasR2Config
   ? new S3Client({
       region: "auto",
-      endpoint: R2_ENDPOINT || `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      endpoint,
       credentials: {
         accessKeyId: R2_ACCESS_KEY_ID,
         secretAccessKey: R2_SECRET_ACCESS_KEY

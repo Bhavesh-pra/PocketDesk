@@ -4,9 +4,10 @@ const fs = require("fs");
 const path = require("path");
 
 let pdfPoppler = null;
-
-if (process.platform === "win32") {
+try {
     pdfPoppler = require("pdf-poppler");
+} catch (err) {
+    console.warn("[OCR] pdf-poppler unavailable; scanned PDF OCR will be skipped.");
 }
 
 /*
@@ -83,9 +84,14 @@ const extractTextFromScannedPDF = async (pdfPath) => {
     dpi: 300,
   };
 
+  if (!pdfPoppler) {
+    console.warn("[OCR] Skipping scanned PDF conversion because pdf-poppler is unavailable.");
+    return "";
+  }
+
   console.log("Converting PDF pages to images...");
 
-  await poppler.convert(pdfPath, options);
+  await pdfPoppler.convert(pdfPath, options);
 
   const images = fs.readdirSync(outputDir)
     .filter(file => file.endsWith(".png"));
