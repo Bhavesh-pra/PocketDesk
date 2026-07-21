@@ -4,10 +4,14 @@ const fs = require("fs");
 const path = require("path");
 
 let pdfPoppler = null;
-try {
+if (process.platform === "win32") {
+  try {
     pdfPoppler = require("pdf-poppler");
-} catch (err) {
-    console.warn("[OCR] pdf-poppler unavailable; scanned PDF OCR will be skipped.");
+  } catch (err) {
+    console.warn("[OCR] pdf-poppler unavailable on Windows; scanned PDF OCR will be skipped.");
+  }
+} else {
+  console.warn(`[OCR] Scanned PDF OCR disabled on ${process.platform}; pdf-poppler is Windows-only.`);
 }
 
 /*
