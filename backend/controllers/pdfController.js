@@ -20,10 +20,35 @@ const errorResponse = (res, status, message) => {
   return res.status(status).json({ error: message });
 };
 
+const formatPdfUploadError = (error) => {
+  if (!error) {
+    return "Unknown upload error";
+  }
+
+  if (error.code === "CredentialsProviderError") {
+    return "R2 credentials are invalid or missing";
+  }
+
+  if (error.name === "MongoServerError" || error.name === "ValidationError") {
+    return "Database save failed";
+  }
+
+  if (error.name === "AxiosError") {
+    return "Embedding request failed";
+  }
+
+  if (typeof error.message === "string" && error.message.trim()) {
+    return error.message;
+  }
+
+  return "Upload failed";
+};
+
 const uploadPdf = async (req, res) => {
   let tempPath;
   let tempDir;
   let fileKey;
+  let stage = "initializing";
 
   try {
     if (!req.file) {
@@ -34,13 +59,22 @@ const uploadPdf = async (req, res) => {
       return errorResponse(res, 500, "R2 storage is not configured");
     }
 
+    stage = "writing-temp-file";
     const temp = await writeBufferToTempFile(req.file.buffer, req.file.originalname);
     tempPath = temp.tempPath;
     tempDir = temp.tempDir;
 
-    let text = await extractTextFromPDF(tempPath);
+    stage = "extracting-pdf-text";
+    let text;
+    try {
+      text = await extractTextFromPDF(tempPath);
+    } catch (parseError) {
+      console.warn("Primary PDF parse failed, falling back to scanned OCR:", parseError.message);
+      text = "";
+    }
 
     if (!text || text.trim().length < 50) {
+      stage = "extracting-scanned-pdf-text";
       text = await extractTextFromScannedPDF(tempPath);
     }
 
@@ -49,8 +83,10 @@ const uploadPdf = async (req, res) => {
       return errorResponse(res, 400, "Could not extract text from PDF");
     }
 
+    stage = "splitting-text";
     const textChunks = splitIntoChunks(text);
 
+    stage = "creating-embeddings";
     const embeddings = await Promise.all(
       textChunks.map((chunk) => getEmbedding(chunk))
     );
@@ -69,14 +105,17 @@ const uploadPdf = async (req, res) => {
           chunk.embedding.length > 0
       );
 
+    stage = "building-r2-key";
     fileKey = buildObjectKey("pdfs", req.file.originalname);
 
+    stage = "uploading-to-r2";
     await uploadObject({
       key: fileKey,
       body: req.file.buffer,
       contentType: req.file.mimetype
     });
 
+    stage = "saving-pdf-document";
     const pdfId = new mongoose.Types.ObjectId();
     const pdf = new Pdf({
       _id: pdfId,
@@ -92,8 +131,10 @@ const uploadPdf = async (req, res) => {
 
     await pdf.save();
 
+    stage = "updating-chunk-cache";
     addPdfChunks(req.userId, chunks);
 
+    stage = "cleaning-temp-files";
     await cleanupTempFile(tempPath, tempDir);
 
     res.status(201).json({
@@ -101,7 +142,7 @@ const uploadPdf = async (req, res) => {
       pdf
     });
   } catch (error) {
-    console.error("PDF Upload Error:", error);
+    console.error(`PDF Upload Error at stage "${stage}":`, error);
 
     if (fileKey) {
       await deleteObject(fileKey).catch(() => {});
@@ -111,7 +152,7 @@ const uploadPdf = async (req, res) => {
       await cleanupTempFile(tempPath, tempDir);
     }
 
-    errorResponse(res, 500, "Upload failed");
+    errorResponse(res, 500, formatPdfUploadError(error));
   }
 };
 

@@ -32,6 +32,7 @@ const s3Client = hasR2Config
   ? new S3Client({
       region: "auto",
       endpoint,
+      forcePathStyle: true,
       credentials: {
         accessKeyId: R2_ACCESS_KEY_ID,
         secretAccessKey: R2_SECRET_ACCESS_KEY
