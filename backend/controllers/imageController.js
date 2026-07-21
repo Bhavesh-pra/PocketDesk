@@ -1,151 +1,159 @@
+const mongoose = require("mongoose");
 const Image = require("../models/image");
 const { extractTextFromImage } = require("../services/ocrService");
 const { splitIntoChunks } = require("../services/pdfService");
 const { getEmbedding } = require("../services/embeddingService");
 const { addImageChunks, loadChunks } = require("../services/chunkCacheService");
+const {
+  uploadObject,
+  deleteObject,
+  buildObjectKey,
+  isR2Configured
+} = require("../services/r2StorageService");
+const {
+  writeBufferToTempFile,
+  cleanupTempFile
+} = require("../services/tempFileService");
 
-const fs = require("fs");
+const deleteImage = async (req, res) => {
+  try {
+    const image = await Image.findOne({
+      _id: req.params.id,
+      userId: req.userId
+    });
 
-const deleteImage = async (req,res)=>{
+    if (!image) {
+      return res.status(404).json({
+        message: "Image not found"
+      });
+    }
 
-try{
+    if (image.fileKey) {
+      await deleteObject(image.fileKey);
+    }
 
-const image = await Image.findOne({
+    await Image.deleteOne({
+      _id: req.params.id,
+      userId: req.userId
+    });
 
-_id:req.params.id,
-userId:req.userId
+    await loadChunks();
 
-});
-
-if(!image){
-
-return res.status(404).json({
-message:"Image not found"
-});
-
-}
-
-
-// delete file from disk
-if(fs.existsSync(image.filePath)){
-
-fs.unlinkSync(image.filePath);
-
-}
-
-
-// delete from database
-await Image.deleteOne({
-_id: req.params.id,
-userId: req.userId
-});
-
-await loadChunks();
-
-res.json({
-message:"Image deleted"
-});
-
-}catch(err){
-
-console.log(err);
-
-res.status(500).json({
-message:"Delete failed"
-});
-
-}
-
+    res.json({
+      message: "Image deleted"
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: "Delete failed"
+    });
+  }
 };
 
-const uploadImage = async (req,res)=>{
+const uploadImage = async (req, res) => {
+  let tempPath;
+  let tempDir;
+  let fileKey;
 
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No image file uploaded" });
+    }
 
+    if (!isR2Configured()) {
+      return res.status(500).json({ message: "R2 storage is not configured" });
+    }
 
+    const temp = await writeBufferToTempFile(req.file.buffer, req.file.originalname);
+    tempPath = temp.tempPath;
+    tempDir = temp.tempDir;
 
-try{
-
-const text = await extractTextFromImage(req.file.path);
-
-const textChunks = splitIntoChunks(text);
+    const text = await extractTextFromImage(tempPath);
+    const textChunks = splitIntoChunks(text || "");
 
     const embeddings = await Promise.all(
-      textChunks.map(chunkText => getEmbedding(chunkText))
+      textChunks.map((chunkText) => getEmbedding(chunkText))
     );
 
-    const chunks = textChunks.map((chunkText, i) => ({
-      text: chunkText,
-      embedding: embeddings[i],
-      sourceType: "image",
-      sourceName: req.file.originalname
-    }));
+    const chunks = textChunks
+      .map((chunkText, i) => ({
+        text: chunkText,
+        embedding: embeddings[i],
+        sourceType: "image",
+        sourceName: req.file.originalname
+      }))
+      .filter((chunk) => chunk.text.trim().length > 0);
 
-const image = new Image({
+    fileKey = buildObjectKey("images", req.file.originalname);
 
-userId: req.userId,
+    await uploadObject({
+      key: fileKey,
+      body: req.file.buffer,
+      contentType: req.file.mimetype
+    });
 
-albumId: req.params.albumId,
+    const imageId = new mongoose.Types.ObjectId();
+    const image = new Image({
+      _id: imageId,
+      userId: req.userId,
+      albumId: req.params.albumId,
+      fileName: req.file.originalname,
+      filePath: `api/files/image/${imageId}`,
+      fileKey,
+      mimeType: req.file.mimetype,
+      extractedText: text,
+      chunks,
+      size: req.file.size
+    });
 
-fileName: req.file.originalname,
+    await image.save();
 
-filePath: req.file.path,
+    addImageChunks(req.userId, chunks);
 
-    extractedText: text,
-    chunks: chunks,
-    size: req.file.size
-  });
+    res.json({
+      message: "Image uploaded + vectorized",
+      image
+    });
+  } catch (err) {
+    console.log(err);
 
-await image.save();
+    if (fileKey) {
+      await deleteObject(fileKey).catch(() => {});
+    }
 
-// FIX: add to in-memory chunk cache so images are immediately searchable
-addImageChunks(req.userId, chunks);
+    if (tempPath || tempDir) {
+      await cleanupTempFile(tempPath, tempDir);
+    }
 
-res.json({
-message:"Image uploaded + vectorized",
-image
-});
-
-}catch(err){
-
-console.log(err);
-
-res.status(500).json({
-message:"Image upload failed"
-});
-
-}
-
+    res.status(500).json({
+      message: "Image upload failed"
+    });
+  } finally {
+    await cleanupTempFile(tempPath, tempDir);
+  }
 };
 
+const getImages = async (req, res) => {
+  try {
+    const albumId = req.params.albumId;
 
-const getImages = async (req,res)=>{
+    const images = await Image.find({
+      albumId,
+      userId: req.userId
+    });
 
-try{
+    res.json(images);
+  } catch (err) {
+    console.log(err);
 
-const albumId = req.params.albumId;
-
-const images = await Image.find({
-albumId,
-userId:req.userId
-});
-
-res.json(images);
-
-}catch(err){
-
-console.log(err);
-
-res.status(500).json({
-message:"Failed to load images"
-});
-
-}
-
+    res.status(500).json({
+      message: "Failed to load images"
+    });
+  }
 };
 
-
-module.exports={
-uploadImage,
-getImages,
-deleteImage
+module.exports = {
+  uploadImage,
+  getImages,
+  deleteImage
 };

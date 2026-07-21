@@ -2,26 +2,9 @@ const express = require("express");
 const router = express.Router();
 const authMiddleware = require("../middleware/authMiddleware");
 const multer = require("multer");
-const fs = require("fs");
-const path = require("path");
-
-// FIX: ensure uploads/videos/ exists before multer tries to write to it
-const videosDir = path.join(__dirname, "../uploads/videos");
-if (!fs.existsSync(videosDir)) {
-  fs.mkdirSync(videosDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/videos/");
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
-  }
-});
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 } // 50MB max
 });
 

@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Video = require("../models/video");
 const VideoNote = require("../models/videoNote");
 const { extractAudio } = require("../services/videoService");
@@ -5,27 +6,43 @@ const { transcribeAudio } = require("../services/transcriptionService");
 const { splitIntoChunks } = require("../services/pdfService");
 const { getEmbedding } = require("../services/embeddingService");
 const { addPdfChunks } = require("../services/chunkCacheService");
-const fs = require("fs");
+const {
+  uploadObject,
+  deleteObject,
+  buildObjectKey,
+  isR2Configured
+} = require("../services/r2StorageService");
+const {
+  writeBufferToTempFile,
+  cleanupTempFile
+} = require("../services/tempFileService");
 
 // =====================
 // UPLOAD VIDEO
 // =====================
 const uploadVideo = async (req, res) => {
+  let tempPath;
+  let tempDir;
+  let fileKey;
+
   try {
     if (!req.file) {
       return res.status(400).json({ message: "No video file uploaded" });
     }
 
-    const videoPath = req.file.path;
+    if (!isR2Configured()) {
+      return res.status(500).json({ message: "R2 storage is not configured" });
+    }
+
+    const temp = await writeBufferToTempFile(req.file.buffer, req.file.originalname);
+    tempPath = temp.tempPath;
+    tempDir = temp.tempDir;
 
     // 1. Extract audio
-    const audioPath = await extractAudio(videoPath);
+    const audioPath = await extractAudio(tempPath);
 
     // 2. Transcribe
     const transcript = await transcribeAudio(audioPath);
-
-    // Clean up audio file after transcription
-    if (fs.existsSync(audioPath)) fs.unlinkSync(audioPath);
 
     // 3. Chunk
     const textChunks = splitIntoChunks(transcript);
@@ -35,7 +52,6 @@ const uploadVideo = async (req, res) => {
       textChunks.map((chunk) => getEmbedding(chunk))
     );
 
-    // FIX: add sourceType and sourceName to every chunk
     const chunks = textChunks.map((text, i) => ({
       text,
       embedding: embeddings[i],
@@ -43,26 +59,51 @@ const uploadVideo = async (req, res) => {
       sourceName: req.file.originalname
     }));
 
+    fileKey = buildObjectKey("videos", req.file.originalname);
+
+    await uploadObject({
+      key: fileKey,
+      body: req.file.buffer,
+      contentType: req.file.mimetype
+    });
+
     // 5. Save to DB
-    const video = await Video.create({
+    const videoId = new mongoose.Types.ObjectId();
+    const video = new Video({
+      _id: videoId,
       userId: req.userId,
       fileName: req.file.originalname,
-      filePath: videoPath,
+      filePath: `api/files/video/${videoId}`,
+      fileKey,
+      mimeType: req.file.mimetype,
       transcript,
       chunks,
       size: req.file.size
     });
 
-    // FIX: add to in-memory chunk cache immediately so RAG works without restart
+    await video.save();
+
+    // Add to in-memory chunk cache immediately so RAG works without restart
     addPdfChunks(req.userId, chunks);
+
+    await cleanupTempFile(audioPath, undefined);
+    await cleanupTempFile(tempPath, tempDir);
 
     res.json({
       message: "Video processed successfully",
       video
     });
-
   } catch (err) {
     console.error("Video upload error:", err);
+
+    if (fileKey) {
+      await deleteObject(fileKey).catch(() => {});
+    }
+
+    if (tempPath || tempDir) {
+      await cleanupTempFile(tempPath, tempDir);
+    }
+
     res.status(500).json({ message: "Video upload failed" });
   }
 };
@@ -73,7 +114,7 @@ const uploadVideo = async (req, res) => {
 const getVideos = async (req, res) => {
   try {
     const videos = await Video.find({ userId: req.userId })
-      .select("-chunks -transcript") // don't send heavy embedding data
+      .select("-chunks -transcript")
       .sort({ createdAt: -1 });
 
     res.json(videos);
@@ -97,13 +138,13 @@ const deleteVideo = async (req, res) => {
       return res.status(404).json({ message: "Video not found" });
     }
 
-    if (fs.existsSync(video.filePath)) {
-      fs.unlinkSync(video.filePath);
+    if (video.fileKey) {
+      await deleteObject(video.fileKey);
     }
 
-    await Video.deleteOne({ 
+    await Video.deleteOne({
       _id: req.params.id,
-      userId: req.userId 
+      userId: req.userId
     });
 
     res.json({ message: "Video deleted" });
@@ -114,7 +155,7 @@ const deleteVideo = async (req, res) => {
 };
 
 // =====================
-// YOUTUBE NOTE — GET
+// YOUTUBE NOTE - GET
 // =====================
 const getVideoNote = async (req, res) => {
   try {
@@ -129,12 +170,10 @@ const getVideoNote = async (req, res) => {
       videoUrl
     });
 
-    // Return empty string if no note yet — not an error
     res.json({
       content: note ? note.content : "",
       videoTitle: note?.videoTitle || ""
     });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to fetch note" });
@@ -142,7 +181,7 @@ const getVideoNote = async (req, res) => {
 };
 
 // =====================
-// YOUTUBE NOTE — SAVE (upsert)
+// YOUTUBE NOTE - SAVE (upsert)
 // =====================
 const saveVideoNote = async (req, res) => {
   try {

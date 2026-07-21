@@ -18,6 +18,14 @@ const pdfSchema = new mongoose.Schema({
         required: true
     },
 
+    fileKey: {
+        type: String
+    },
+
+    mimeType: {
+        type: String
+    },
+
     extractedText: {
         type: String
     },

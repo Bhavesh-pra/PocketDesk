@@ -11,6 +11,10 @@ const videoSchema = new mongoose.Schema({
 
   filePath: String,
 
+  fileKey: String,
+
+  mimeType: String,
+
   transcript: String,
 
   chunks: [

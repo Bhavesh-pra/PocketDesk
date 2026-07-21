@@ -16,6 +16,10 @@ fileName:String,
 
 filePath:String,
 
+fileKey:String,
+
+mimeType:String,
+
 extractedText:String,
 
 chunks:[

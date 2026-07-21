@@ -130,6 +130,9 @@ app.use("/api/albums", albumRoutes);
 const imageRoutes = require("./routes/imageRoutes");
 app.use("/api/images", imageRoutes);
 
+const fileRoutes = require("./routes/fileRoutes");
+app.use("/api/files", fileRoutes);
+
 app.use("/uploads", express.static("uploads", {
   maxAge: "1d",
   etag: true
