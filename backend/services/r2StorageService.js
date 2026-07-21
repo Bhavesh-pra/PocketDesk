@@ -5,8 +5,7 @@ const {
   R2_ACCOUNT_ID,
   R2_ACCESS_KEY_ID,
   R2_SECRET_ACCESS_KEY,
-  R2_BUCKET_NAME,
-  R2_ENDPOINT
+  R2_BUCKET_NAME
 } = process.env;
 
 const hasR2Config =
@@ -15,18 +14,14 @@ const hasR2Config =
   R2_SECRET_ACCESS_KEY &&
   R2_BUCKET_NAME;
 
-const normalizeEndpoint = (value) => {
-  if (!value) return null;
-
-  try {
-    return new URL(value).origin;
-  } catch {
-    return null;
-  }
+const normalizeAccountId = (value) => {
+  const accountId = String(value || "").trim().toLowerCase();
+  const match = accountId.match(/[a-f0-9]{32}/);
+  return match ? match[0] : accountId;
 };
 
-const computedEndpoint = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
-const endpoint = normalizeEndpoint(R2_ENDPOINT) || computedEndpoint;
+const accountId = normalizeAccountId(R2_ACCOUNT_ID);
+const endpoint = `https://${accountId}.r2.cloudflarestorage.com`;
 
 const s3Client = hasR2Config
   ? new S3Client({
