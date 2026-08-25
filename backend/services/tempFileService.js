@@ -5,19 +5,24 @@ const crypto = require("crypto");
 
 async function writeBufferToTempFile(buffer, originalName) {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "pocketdesk-"));
-  const safeName = String(originalName || "upload")
-    .replace(/[^a-zA-Z0-9._-]/g, "_");
-  const tempPath = path.join(
-    tempDir,
-    `${crypto.randomUUID()}-${safeName}`
-  );
+  try {
+    const safeName = String(originalName || "upload")
+      .replace(/[^a-zA-Z0-9._-]/g, "_");
+    const tempPath = path.join(
+      tempDir,
+      `${crypto.randomUUID()}-${safeName}`
+    );
 
-  await fs.writeFile(tempPath, buffer);
+    await fs.writeFile(tempPath, buffer);
 
-  return {
-    tempDir,
-    tempPath
-  };
+    return {
+      tempDir,
+      tempPath
+    };
+  } catch (error) {
+    await cleanupTempFile(null, tempDir);
+    throw error;
+  }
 }
 
 async function cleanupTempFile(tempPath, tempDir) {

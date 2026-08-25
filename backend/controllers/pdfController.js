@@ -2,8 +2,8 @@ const mongoose = require("mongoose");
 const Pdf = require("../models/pdf");
 
 const { addPdfChunks, loadChunks } = require("../services/chunkCacheService");
-const { extractTextFromPDF, splitIntoChunks } = require("../services/pdfService");
-const { extractTextFromScannedPDF } = require("../services/ocrService");
+const { splitIntoChunks } = require("../services/pdfService");
+const { extractTextWithPython } = require("../services/pythonPdfService");
 const { getEmbedding } = require("../services/embeddingService");
 const {
   uploadObject,
@@ -65,23 +65,8 @@ const uploadPdf = async (req, res) => {
     tempDir = temp.tempDir;
 
     stage = "extracting-pdf-text";
-    let text;
-    try {
-      text = await extractTextFromPDF(tempPath);
-    } catch (parseError) {
-      console.warn("Primary PDF parse failed, falling back to scanned OCR:", parseError.message);
-      text = "";
-    }
-
-    if (!text || text.trim().length < 50) {
-      stage = "extracting-scanned-pdf-text";
-      text = await extractTextFromScannedPDF(tempPath);
-    }
-
-    if (!text || text.trim().length < 50) {
-      await cleanupTempFile(tempPath, tempDir);
-      return errorResponse(res, 400, "Could not extract text from PDF");
-    }
+    const result = await extractTextWithPython(tempPath);
+    const text = result.text;
 
     stage = "splitting-text";
     const textChunks = splitIntoChunks(text);

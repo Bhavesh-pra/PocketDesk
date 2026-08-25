@@ -1,0 +1,6 @@
+# PDFium benchmark — Python dependencies
+# All permissively licensed (see README.md for license details)
+
+pypdfium2==5.13.0
+pytesseract==0.3.13
+Pillow==11.2.1

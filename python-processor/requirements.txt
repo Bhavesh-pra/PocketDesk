@@ -1,0 +1,14 @@
+# Core framework
+fastapi==0.115.12
+uvicorn[standard]==0.34.3
+python-multipart==0.0.20
+
+# PDF processing (PDFium)
+pypdfium2==5.13.0
+pytesseract==0.3.13
+Pillow==11.2.1
+
+# Testing
+pytest==8.4.1
+pytest-asyncio==1.0.0
+httpx==0.28.1
