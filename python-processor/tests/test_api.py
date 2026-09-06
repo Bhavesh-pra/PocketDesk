@@ -96,6 +96,21 @@ def _make_mixed_pdf(text_pages: int = 3, image_pages: int = 2) -> bytes:
 # Fixtures
 # ---------------------------------------------------------------------------
 
+TEST_TOKEN = "test-pocketdesk-token"
+AUTH_HEADERS = {"X-Python-Service-Token": TEST_TOKEN}
+
+
+@pytest.fixture(autouse=True)
+def setup_service_token(monkeypatch):
+    """Ensure PYTHON_SERVICE_TOKEN is set for API tests."""
+    monkeypatch.setattr("app.api.pdf.PYTHON_SERVICE_TOKEN", TEST_TOKEN)
+    monkeypatch.setattr("app.config.PYTHON_SERVICE_TOKEN", TEST_TOKEN)
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
@@ -119,6 +134,7 @@ async def test_native_text_pdf(client):
 
     resp = await client.post(
         "/process/pdf",
+        headers=AUTH_HEADERS,
         files={"file": ("test.pdf", pdf_bytes, "application/pdf")},
     )
     assert resp.status_code == 200
@@ -144,6 +160,7 @@ async def test_scanned_pdf(client):
 
     resp = await client.post(
         "/process/pdf",
+        headers=AUTH_HEADERS,
         files={"file": ("scanned.pdf", pdf_bytes, "application/pdf")},
     )
     assert resp.status_code == 200
@@ -171,6 +188,7 @@ async def test_mixed_pdf(client):
 
     resp = await client.post(
         "/process/pdf",
+        headers=AUTH_HEADERS,
         files={"file": ("mixed.pdf", pdf_bytes, "application/pdf")},
     )
     assert resp.status_code == 200
@@ -194,6 +212,7 @@ async def test_large_pdf(client):
 
     resp = await client.post(
         "/process/pdf",
+        headers=AUTH_HEADERS,
         files={"file": ("large.pdf", pdf_bytes, "application/pdf")},
     )
     assert resp.status_code == 200
@@ -215,6 +234,7 @@ async def test_invalid_file(client):
     """Non-PDF data should return a structured error."""
     resp = await client.post(
         "/process/pdf",
+        headers=AUTH_HEADERS,
         files={"file": ("bad.pdf", b"this is not a pdf at all", "application/pdf")},
     )
     assert resp.status_code == 400
@@ -231,6 +251,7 @@ async def test_wrong_extension(client):
     """A file with a non-.pdf extension should be rejected."""
     resp = await client.post(
         "/process/pdf",
+        headers=AUTH_HEADERS,
         files={"file": ("image.png", b"fake", "image/png")},
     )
     assert resp.status_code == 400
@@ -246,6 +267,7 @@ async def test_empty_upload(client):
     """An empty file should be rejected."""
     resp = await client.post(
         "/process/pdf",
+        headers=AUTH_HEADERS,
         files={"file": ("empty.pdf", b"", "application/pdf")},
     )
     assert resp.status_code == 400
@@ -261,6 +283,7 @@ async def test_encrypted_or_corrupt_pdf(client):
     """A header-only truncated PDF should fail gracefully with structured error."""
     resp = await client.post(
         "/process/pdf",
+        headers=AUTH_HEADERS,
         files={"file": ("corrupt.pdf", b"%PDF-1.4\n%EOF", "application/pdf")},
     )
     assert resp.status_code == 400
@@ -271,15 +294,68 @@ async def test_encrypted_or_corrupt_pdf(client):
 
 
 # ---------------------------------------------------------------------------
-# Health check
+# Authentication Tests
+# ---------------------------------------------------------------------------
+
+@pytest.mark.anyio
+async def test_missing_token(client):
+    """Missing X-Python-Service-Token header should return 401 Unauthorized."""
+    pdf_bytes = _make_text_pdf(pages=1)
+    resp = await client.post(
+        "/process/pdf",
+        files={"file": ("test.pdf", pdf_bytes, "application/pdf")},
+    )
+    assert resp.status_code == 401
+    data = resp.json()
+    assert data["success"] is False
+    assert data["error"] == "Unauthorized"
+    assert data["details"] == "Invalid or missing service authentication token"
+
+
+@pytest.mark.anyio
+async def test_invalid_token(client):
+    """Incorrect X-Python-Service-Token header should return 401 Unauthorized."""
+    pdf_bytes = _make_text_pdf(pages=1)
+    resp = await client.post(
+        "/process/pdf",
+        headers={"X-Python-Service-Token": "wrong-secret-token"},
+        files={"file": ("test.pdf", pdf_bytes, "application/pdf")},
+    )
+    assert resp.status_code == 401
+    data = resp.json()
+    assert data["success"] is False
+    assert data["error"] == "Unauthorized"
+    assert data["details"] == "Invalid or missing service authentication token"
+
+
+@pytest.mark.anyio
+async def test_unconfigured_server_token_fails_closed(client, monkeypatch):
+    """When PYTHON_SERVICE_TOKEN is unconfigured (empty), endpoints fail closed."""
+    monkeypatch.setattr("app.api.pdf.PYTHON_SERVICE_TOKEN", "")
+    pdf_bytes = _make_text_pdf(pages=1)
+    resp = await client.post(
+        "/process/pdf",
+        headers=AUTH_HEADERS,
+        files={"file": ("test.pdf", pdf_bytes, "application/pdf")},
+    )
+    assert resp.status_code == 401
+    data = resp.json()
+    assert data["success"] is False
+    assert data["error"] == "Unauthorized"
+
+
+# ---------------------------------------------------------------------------
+# Health check (Public & Unauthenticated)
 # ---------------------------------------------------------------------------
 
 @pytest.mark.anyio
 async def test_health(client):
+    """Health check must remain accessible without authentication."""
     resp = await client.get("/health")
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "ok"
     assert "pdfium_version" in data
     assert "tesseract_available" in data
+    assert "pymupdf_version" in data
 

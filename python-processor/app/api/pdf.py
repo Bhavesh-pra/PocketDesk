@@ -7,14 +7,16 @@ PDF, and returns structured JSON with extracted text and diagnostics.
 
 from __future__ import annotations
 
+import hmac
 import logging
 import os
 import tempfile
 import uuid
+from typing import Optional
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
 
-from app.config import MAX_UPLOAD_BYTES
+from app.config import MAX_UPLOAD_BYTES, PYTHON_SERVICE_TOKEN
 from app.schemas.pdf import PDFErrorResponse, PDFSuccessResponse, ProcessingDiagnostics
 from app.services.ocr_service import is_tesseract_available
 from app.services.pdf_processor import process_pdf
@@ -28,6 +30,35 @@ _ALLOWED_MIME_TYPES = {
     "application/pdf",
     "application/x-pdf",
 }
+
+
+def verify_service_token(
+    x_python_service_token: Optional[str] = Header(None, alias="X-Python-Service-Token"),
+) -> None:
+    """
+    Validate incoming request authentication token using constant-time comparison.
+
+    Fails closed if PYTHON_SERVICE_TOKEN is missing on server or if caller token is invalid/missing.
+    """
+    expected_token = (PYTHON_SERVICE_TOKEN or "").strip()
+
+    if not expected_token or not x_python_service_token:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "Unauthorized",
+                "details": "Invalid or missing service authentication token",
+            },
+        )
+
+    if not hmac.compare_digest(x_python_service_token.strip(), expected_token):
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "Unauthorized",
+                "details": "Invalid or missing service authentication token",
+            },
+        )
 
 
 def _validate_upload(file: UploadFile) -> None:
@@ -60,7 +91,12 @@ def _validate_upload(file: UploadFile) -> None:
 @router.post(
     "/process/pdf",
     response_model=PDFSuccessResponse,
-    responses={400: {"model": PDFErrorResponse}, 500: {"model": PDFErrorResponse}},
+    responses={
+        400: {"model": PDFErrorResponse},
+        401: {"model": PDFErrorResponse},
+        500: {"model": PDFErrorResponse},
+    },
+    dependencies=[Depends(verify_service_token)],
     summary="Process a PDF and extract text",
 )
 async def process_pdf_endpoint(file: UploadFile = File(...)):

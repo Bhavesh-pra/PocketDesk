@@ -1,4 +1,4 @@
-﻿const fs = require("fs");
+const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
 let FormData;
@@ -20,6 +20,7 @@ const extractTextWithPython = async (filePath) => {
   }
 
   const pythonServiceUrl = process.env.PYTHON_SERVICE_URL || "http://localhost:8000";
+  const pythonServiceToken = process.env.PYTHON_SERVICE_TOKEN;
   const endpoint = `${pythonServiceUrl.replace(/\/$/, "")}/process/pdf`;
 
   console.log(`[PYTHON PDF] Streaming ${filePath} to ${endpoint}`);
@@ -27,6 +28,7 @@ const extractTextWithPython = async (filePath) => {
   try {
     const fileName = path.basename(filePath);
     const form = new FormData();
+    const authHeader = pythonServiceToken ? { "X-Python-Service-Token": pythonServiceToken } : {};
 
     if (form.append && typeof form.getHeaders === "function") {
       // npm form-data package with stream
@@ -36,7 +38,10 @@ const extractTextWithPython = async (filePath) => {
       });
 
       const response = await axios.post(endpoint, form, {
-        headers: form.getHeaders(),
+        headers: {
+          ...form.getHeaders(),
+          ...authHeader
+        },
         timeout: 300000 // 300 seconds HTTP timeout
       });
       return _processResponse(response.data);
@@ -47,6 +52,7 @@ const extractTextWithPython = async (filePath) => {
       form.append("file", blob, fileName);
 
       const response = await axios.post(endpoint, form, {
+        headers: authHeader,
         timeout: 300000
       });
       return _processResponse(response.data);

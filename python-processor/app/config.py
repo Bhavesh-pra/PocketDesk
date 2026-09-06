@@ -39,7 +39,10 @@ OCR_DPI: int = int(os.getenv("OCR_DPI", "200"))
 MAX_UPLOAD_BYTES: int = int(os.getenv("MAX_UPLOAD_BYTES", str(50 * 1024 * 1024)))
 
 # ---------------------------------------------------------------------------
-# Server
+# Server & Security
 # ---------------------------------------------------------------------------
 HOST: str = os.getenv("HOST", "0.0.0.0")
 PORT: int = int(os.getenv("PORT", "8000"))
+
+# Shared secret token for authenticating service-to-service requests.
+PYTHON_SERVICE_TOKEN: str = os.getenv("PYTHON_SERVICE_TOKEN", "")
